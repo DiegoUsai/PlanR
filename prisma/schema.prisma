@@ -1,0 +1,354 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ──────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────
+
+enum ContractType {
+  SUBAPPALTO
+  APPALTO
+}
+
+enum InitiativeType {
+  MEV
+  MAD
+}
+
+enum InitiativeStatus {
+  IN_ATTESA_DI_ALLOCAZIONE
+  ALLOCATO
+  IN_LAVORAZIONE
+  COMPLETATO
+  READY_PENDING_RESOURCES
+  IN_ATTESA_COPERTURA_CONTRATTUALE
+  FUORI_SCOPE
+}
+
+enum Priority {
+  ALTA
+  MEDIA
+  BASSA
+}
+
+enum SizingSize {
+  XS
+  S
+  M
+  L
+  XL
+}
+
+enum Polarity {
+  PRIMA_META
+  SECONDA_META
+}
+
+enum AnalysisTestSize {
+  A_XS
+  A_S
+  A_M
+  A_L
+}
+
+enum RiskLevel {
+  ALTO
+  MEDIO
+  BASSO
+}
+
+enum EconomicValue {
+  UNDER_5K
+  FROM_5K_TO_10K
+  FROM_10K_TO_15K
+  FROM_15K_TO_20K
+  FROM_20K_TO_30K
+  FROM_30K_TO_40K
+  OVER_40K
+}
+
+enum ResourceRole {
+  FE
+  BE
+  ANALISTA
+  TECH_LEAD
+  ARCHITETTO
+  PM
+  BA_SENIOR
+  ALTRO
+}
+
+enum ResourceLevel {
+  JUNIOR
+  MID
+  SENIOR
+}
+
+enum ResourceType {
+  INTERNA
+  ESTERNA
+}
+
+enum ResourceBelonging {
+  BU_DOCUMENTALE
+  ENGINEERING_EXCELLENCE
+}
+
+enum ResourcePool {
+  MANUTENZIONE
+  EVOLUTIVA_ADEGUATIVA
+}
+
+enum LockType {
+  SOFT
+  HARD
+}
+
+enum AbsenceType {
+  FERIE
+  MALATTIA
+  PERMESSO
+  ALTRO
+}
+
+enum AllocationRole {
+  FE
+  BE
+  ANALISTA
+  TECH_LEAD
+  ALTRO
+}
+
+enum UserRole {
+  DEMAND_RESOURCE_MANAGER
+  BU_MANAGER
+}
+
+// ──────────────────────────────────────────────
+// Models
+// ──────────────────────────────────────────────
+
+model Application {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  modules        Module[]
+  releaseWindows ReleaseWindow[]
+  initiatives    Initiative[]
+
+  contracts      Contract[]       @relation("ApplicationContracts")
+  assignedPMs    Resource[]       @relation("ApplicationPMs")
+
+  @@map("applications")
+}
+
+model Module {
+  id            String   @id @default(uuid())
+  applicationId String
+  name          String
+  description   String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  application Application  @relation(fields: [applicationId], references: [id])
+  initiatives Initiative[]
+
+  @@map("modules")
+}
+
+model Contract {
+  id                  String       @id @default(uuid())
+  identifier          String
+  type                ContractType
+  client              String
+  amount              Decimal      @db.Decimal(12, 2)
+  startDate           DateTime     @db.Date
+  endDate             DateTime     @db.Date
+  pmEffortPercentage  Decimal      @db.Decimal(5, 2)
+  notes               String?      @db.Text
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  applications Application[] @relation("ApplicationContracts")
+  initiatives  Initiative[]
+
+  @@map("contracts")
+}
+
+model Initiative {
+  id                    String           @id @default(uuid())
+  applicationId         String
+  moduleId              String?
+  contractId            String
+  jiraEpicId            String?
+  title                 String
+  description           String?          @db.Text
+  type                  InitiativeType
+  priority              Priority
+  desiredStartDate      DateTime?        @db.Date
+  desiredEndDate        DateTime?        @db.Date
+  plannedStartDate      DateTime?        @db.Date
+  plannedEndDate        DateTime?        @db.Date
+  estimatedDays         Decimal?         @db.Decimal(8, 2)
+  requiredProfiles      String?          @db.Text
+  status                InitiativeStatus @default(IN_ATTESA_DI_ALLOCAZIONE)
+  softLock              Boolean          @default(false)
+  softLockExpiry        DateTime?        @db.Date
+  mentoring             Boolean          @default(false)
+  sizingSize            SizingSize?
+  polarity              Polarity?
+  analysisTestSize      AnalysisTestSize?
+  technicalRiskFlag     RiskLevel?
+  estimateRiskFlag      RiskLevel?
+  reuseFlag             Boolean          @default(false)
+  economicValue         EconomicValue?
+  notes                 String?          @db.Text
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id])
+  module      Module?     @relation(fields: [moduleId], references: [id])
+  contract    Contract    @relation(fields: [contractId], references: [id])
+  allocations Allocation[]
+
+  @@map("initiatives")
+}
+
+model Resource {
+  id            String            @id @default(uuid())
+  name          String
+  role          ResourceRole
+  level         ResourceLevel
+  type          ResourceType
+  belonging     ResourceBelonging
+  pool          ResourcePool
+  isPTF         Boolean           @default(false)
+  joinDate      DateTime?         @db.Date
+  notes         String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  parameters    ResourceParameter[]
+  allocations   Allocation[]
+  absences      Absence[]
+
+  managedApps   Application[] @relation("ApplicationPMs")
+
+  @@map("resources")
+}
+
+model ResourceParameter {
+  id                    String    @id @default(uuid())
+  resourceId            String
+  weeklyHours           Decimal   @db.Decimal(5, 2)
+  dailyCost             Decimal   @db.Decimal(10, 2)
+  productivityCoeff     Decimal   @db.Decimal(4, 2) @default(1.00)
+  weeklyHoursBuffer     Decimal?  @db.Decimal(5, 2)
+  validFrom             DateTime  @db.Date
+  validTo               DateTime? @db.Date
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id])
+
+  @@map("resource_parameters")
+}
+
+model Allocation {
+  id                      String         @id @default(uuid())
+  initiativeId            String
+  resourceId              String
+  lockType                LockType
+  allocationPercentage    Int
+  startDate               DateTime       @db.Date
+  endDate                 DateTime       @db.Date
+  allocatedEffortDays     Decimal        @db.Decimal(8, 2)
+  roleInInitiative        AllocationRole
+  isSeniorMentoring       Boolean        @default(false)
+  notes                   String?        @db.Text
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  initiative Initiative @relation(fields: [initiativeId], references: [id])
+  resource   Resource   @relation(fields: [resourceId], references: [id])
+
+  @@map("allocations")
+}
+
+model Absence {
+  id         String      @id @default(uuid())
+  resourceId String
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  type       AbsenceType
+  hours      Decimal     @db.Decimal(4, 1)
+  notes      String?     @db.Text
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id])
+
+  @@unique([resourceId, startDate])
+  @@map("absences")
+}
+
+model ReleaseWindow {
+  id            String   @id @default(uuid())
+  applicationId String
+  startDate     DateTime @db.Date
+  endDate       DateTime @db.Date
+  reason        String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@map("release_windows")
+}
+
+model BUConfiguration {
+  id                    String   @id @default(uuid())
+  annualBudget          Decimal? @db.Decimal(14, 2)
+  weeklyHoursBuffer     Decimal  @db.Decimal(5, 2) @default(8.00)
+  saturationMin         Int      @default(75)
+  saturationMax         Int      @default(85)
+  saturationAlarm       Int      @default(90)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("bu_configuration")
+}
+
+model WeeklySnapshot {
+  id                       String   @id @default(uuid())
+  snapshotDate             DateTime @db.Date
+  averageBUSaturation      Decimal  @db.Decimal(5, 2)
+  resourcesByBand          Json
+  softLockPipelineValue    Decimal  @db.Decimal(14, 2)
+  pendingResourcesCount    Int
+  createdAt                DateTime @default(now())
+
+  @@unique([snapshotDate])
+  @@map("weekly_snapshots")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
