@@ -6,12 +6,16 @@
     "dev": "next dev",
     "build": "npx prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push": "npx prisma db push",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:reset": "npx prisma db push --force-reset && npx tsx prisma/seed.ts"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "@mui/material-nextjs": "^9.4.0",
     "@mui/x-charts": "^9.12.0",
@@ -33,12 +37,14 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "prisma": "^6.19.3",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   },
   "allowScripts": {
     "prisma@6.19.3": true,
     "@prisma/engines@6.19.3": true,
     "unrs-resolver@1.12.2": true,
-    "@prisma/client@6.19.3": true
+    "@prisma/client@6.19.3": true,
+    "esbuild@0.28.2": true
   }
 }

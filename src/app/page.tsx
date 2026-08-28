@@ -1,39 +1,68 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Container from "@mui/material/Container";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
-export default function Home() {
+export default async function Dashboard() {
+  const [resourceCount, appCount, contractCount, initiativeCount] =
+    await Promise.all([
+      prisma.resource.count(),
+      prisma.application.count(),
+      prisma.contract.count(),
+      prisma.initiative.count(),
+    ]);
+
+  const stats = [
+    { label: "Risorse", count: resourceCount, href: "/risorse", color: "#00379E" },
+    { label: "Applicativi", count: appCount, href: "/applicativi", color: "#0C538E" },
+    { label: "Contratti", count: contractCount, href: "/contratti", color: "#00B7EC" },
+    { label: "Iniziative", count: initiativeCount, href: "/iniziative", color: "#0095C0" },
+  ];
+
   return (
-    <Container maxWidth="md">
+    <Box>
+      <Typography variant="h5" fontWeight={600} mb={3}>
+        Dashboard
+      </Typography>
       <Box
         sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
           gap: 2,
         }}
       >
-        <Typography
-          variant="h2"
-          component="h1"
-          sx={{
-            fontWeight: 700,
-            background: "linear-gradient(90deg, #00379E 0%, #00B7EC 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          PlanR
-        </Typography>
-        <Typography variant="h6" color="text.secondary" sx={{ textAlign: "center" }}>
-          Resource Planning — BU Documentale & SAP
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 4 }}>
-          MVP in sviluppo
-        </Typography>
+        {stats.map((s) => (
+          <Link
+            key={s.label}
+            href={s.href}
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            <Card
+              elevation={0}
+              sx={{
+                cursor: "pointer",
+                transition: "box-shadow 0.2s",
+                "&:hover": { boxShadow: 3 },
+              }}
+            >
+              <CardContent>
+                <Typography variant="body2" color="text.secondary">
+                  {s.label}
+                </Typography>
+                <Typography
+                  variant="h3"
+                  fontWeight={700}
+                  sx={{ color: s.color, mt: 1 }}
+                >
+                  {s.count}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </Box>
-    </Container>
+    </Box>
   );
 }
