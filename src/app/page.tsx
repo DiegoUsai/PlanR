@@ -7,14 +7,24 @@ import CardContent from "@mui/material/CardContent";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+async function getCounts() {
+  try {
+    const [resourceCount, appCount, contractCount, initiativeCount] =
+      await Promise.all([
+        prisma.resource.count(),
+        prisma.application.count(),
+        prisma.contract.count(),
+        prisma.initiative.count(),
+      ]);
+    return { resourceCount, appCount, contractCount, initiativeCount };
+  } catch {
+    return { resourceCount: 0, appCount: 0, contractCount: 0, initiativeCount: 0 };
+  }
+}
+
 export default async function Dashboard() {
-  const [resourceCount, appCount, contractCount, initiativeCount] =
-    await Promise.all([
-      prisma.resource.count(),
-      prisma.application.count(),
-      prisma.contract.count(),
-      prisma.initiative.count(),
-    ]);
+  const { resourceCount, appCount, contractCount, initiativeCount } =
+    await getCounts();
 
   const stats = [
     { label: "Risorse", count: resourceCount, href: "/risorse", color: "#00379E" },
