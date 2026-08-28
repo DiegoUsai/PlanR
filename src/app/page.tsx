@@ -23,7 +23,7 @@ export default async function Dashboard() {
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={600} mb={3}>
+      <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
         Dashboard
       </Typography>
       <Box
@@ -53,8 +53,8 @@ export default async function Dashboard() {
                 </Typography>
                 <Typography
                   variant="h3"
-                  fontWeight={700}
-                  sx={{ color: s.color, mt: 1 }}
+                  component="p"
+                  sx={{ fontWeight: 700, color: s.color, mt: 1 }}
                 >
                   {s.count}
                 </Typography>

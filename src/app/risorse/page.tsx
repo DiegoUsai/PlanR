@@ -304,7 +304,7 @@ export default function RisorsePage() {
           mb: 2,
         }}
       >
-        <Typography variant="h5" fontWeight={600}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           Risorse
         </Typography>
         <Button variant="contained" startIcon={<Add />} onClick={handleCreate}>

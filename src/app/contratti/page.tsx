@@ -251,7 +251,7 @@ export default function ContrattiPage() {
           mb: 2,
         }}
       >
-        <Typography variant="h5" fontWeight={600}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           Contratti
         </Typography>
         <Button variant="contained" startIcon={<Add />} onClick={handleCreate}>
