@@ -24,7 +24,9 @@ import {
   PRIORITY_LABELS,
   PRIORITY_COLORS,
 } from "@/lib/constants";
+import GroupIcon from "@mui/icons-material/Group";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import AllocationManager from "@/components/initiatives/AllocationManager";
 
 interface Initiative {
   id: string;
@@ -80,6 +82,7 @@ export default function IniziativePage() {
   const [editing, setEditing] = useState<Initiative | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<Initiative | null>(null);
+  const [allocTarget, setAllocTarget] = useState<Initiative | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -263,12 +266,22 @@ export default function IniziativePage() {
     {
       field: "actions",
       headerName: "",
-      width: 90,
+      width: 130,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
       renderCell: ({ row }) => (
         <>
+          <IconButton
+            size="small"
+            title="Allocazioni"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAllocTarget(row);
+            }}
+          >
+            <GroupIcon fontSize="small" />
+          </IconButton>
           <IconButton
             size="small"
             onClick={(e) => {
@@ -513,6 +526,18 @@ export default function IniziativePage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {allocTarget && (
+        <AllocationManager
+          initiativeId={allocTarget.id}
+          initiativeTitle={allocTarget.title}
+          open={!!allocTarget}
+          onClose={() => {
+            setAllocTarget(null);
+            fetchData();
+          }}
+        />
+      )}
     </Box>
   );
 }
