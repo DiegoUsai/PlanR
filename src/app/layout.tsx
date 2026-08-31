@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
-import { ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import theme from "@/theme/theme";
+import Providers from "./providers";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
@@ -14,12 +11,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="it">
       <body>
-        <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <AppShell>{children}</AppShell>
-          </ThemeProvider>
-        </AppRouterCacheProvider>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );

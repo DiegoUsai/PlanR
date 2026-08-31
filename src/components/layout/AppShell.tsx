@@ -30,6 +30,10 @@ const NAV_ITEMS = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  if (pathname === "/signin") {
+    return <>{children}</>;
+  }
+
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <Drawer

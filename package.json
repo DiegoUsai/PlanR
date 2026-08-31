@@ -12,6 +12,7 @@
     "db:reset": "npx prisma db push --force-reset && npx tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -24,6 +25,7 @@
     "@prisma/client": "^6.19.3",
     "dayjs": "^1.11.23",
     "next": "16.3.3",
+    "next-auth": "^5.0.0-beta.32",
     "papaparse": "^5.7.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
