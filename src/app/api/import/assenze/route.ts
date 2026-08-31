@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     const row = data[i];
     const rowNum = i + 2;
 
-    const name = row.nominativo?.trim();
-    if (!name) {
+    const nominativo = row.nominativo?.trim();
+    if (!nominativo) {
       rowErrors.push({ row: rowNum, field: "nominativo", message: "Nominativo mancante" });
       continue;
     }
@@ -59,15 +59,20 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    let resourceId = resourceCache.get(name);
+    let resourceId = resourceCache.get(nominativo);
     if (!resourceId) {
-      const resource = await prisma.resource.findFirst({ where: { name } });
+      const parts = nominativo.split(/\s+/);
+      const lastName = parts[0] || "";
+      const firstName = parts.slice(1).join(" ") || "";
+      const resource = await prisma.resource.findFirst({
+        where: { lastName, firstName },
+      });
       if (!resource) {
-        rowErrors.push({ row: rowNum, field: "nominativo", message: `Risorsa non trovata: "${name}"` });
+        rowErrors.push({ row: rowNum, field: "nominativo", message: `Risorsa non trovata: "${nominativo}"` });
         continue;
       }
       resourceId = resource.id;
-      resourceCache.set(name, resourceId);
+      resourceCache.set(nominativo, resourceId);
     }
 
     const absenceDate = new Date(dateStr);

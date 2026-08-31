@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateAllocationSchema } from "@/lib/validators/allocation";
+import { calculateEffortDays } from "@/lib/business-rules/working-days";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,13 +34,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     );
   }
 
-  const { startDate, endDate, softLockExpiry, ...data } = parsed.data;
+  const { startDate, endDate, softLockExpiry, allocatedEffortDays, ...data } = parsed.data;
   const updateData: Record<string, unknown> = { ...data };
 
   if (startDate) updateData.startDate = new Date(startDate);
   if (endDate) updateData.endDate = new Date(endDate);
   if (softLockExpiry !== undefined)
     updateData.softLockExpiry = softLockExpiry ? new Date(softLockExpiry) : null;
+
+  if (allocatedEffortDays !== undefined) {
+    updateData.allocatedEffortDays = allocatedEffortDays;
+  } else if (startDate && endDate && data.allocationPercentage) {
+    updateData.allocatedEffortDays = calculateEffortDays(
+      new Date(startDate),
+      new Date(endDate),
+      data.allocationPercentage
+    );
+  }
 
   if (endDate) {
     const current = await prisma.allocation.findUnique({
@@ -48,13 +59,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     });
 
     if (current && new Date(endDate) > current.initiative.contract.endDate) {
-      return NextResponse.json(
-        {
-          error: "Data fine allocazione supera data fine contratto",
-          contractEndDate: current.initiative.contract.endDate,
-        },
-        { status: 422 }
-      );
+      if (!body.confirm) {
+        return NextResponse.json(
+          {
+            warnings: [
+              `Data fine allocazione (${new Date(endDate).toLocaleDateString("it-IT")}) supera data fine contratto (${current.initiative.contract.endDate.toLocaleDateString("it-IT")})`,
+            ],
+            requiresConfirmation: true,
+          },
+          { status: 409 }
+        );
+      }
     }
   }
 

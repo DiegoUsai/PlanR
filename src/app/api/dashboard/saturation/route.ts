@@ -129,7 +129,7 @@ export async function GET() {
 
       heatmap.push({
         resourceId: resource.id,
-        resourceName: resource.name,
+        resourceName: `${resource.lastName} ${resource.firstName}`,
         role: resource.role,
         weeks: weekValues,
       });

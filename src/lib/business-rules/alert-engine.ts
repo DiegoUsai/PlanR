@@ -138,7 +138,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
           severity: "OPERATIVO",
           entityType: "Resource",
           entityId: resource.id,
-          message: `${resource.name}: saturazione > ${saturationAlarm}% per ${overWeeks} settimane consecutive`,
+          message: `${resource.lastName} ${resource.firstName}: saturazione > ${saturationAlarm}% per ${overWeeks} settimane consecutive`,
         });
         overWeeks = 0;
       }
@@ -149,7 +149,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
           severity: "OPERATIVO",
           entityType: "Resource",
           entityId: resource.id,
-          message: `${resource.name}: saturazione < 50% per ${underWeeks} settimane consecutive`,
+          message: `${resource.lastName} ${resource.firstName}: saturazione < 50% per ${underWeeks} settimane consecutive`,
         });
         underWeeks = 0;
       }
@@ -171,7 +171,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
             severity: "OPERATIVO",
             entityType: "Resource",
             entityId: resource.id,
-            message: `${resource.name}: contratto scade il ${contractEnd.toLocaleDateString("it-IT")} con ${activeAllocs.length} allocazione/i attive`,
+            message: `${resource.lastName} ${resource.firstName}: contratto scade il ${contractEnd.toLocaleDateString("it-IT")} con ${activeAllocs.length} allocazione/i attive`,
           });
         }
       }
@@ -198,7 +198,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
               severity: "OPERATIVO",
               entityType: "Initiative",
               entityId: alloc.initiativeId,
-              message: `${alloc.initiative.title}: coefficiente ${coeff} di ${resource.name} causa slittamento oltre data desiderata`,
+              message: `${alloc.initiative.title}: coefficiente ${coeff} di ${resource.lastName} ${resource.firstName} causa slittamento oltre data desiderata`,
             });
           }
         }
@@ -221,7 +221,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
       severity: "OPERATIVO",
       entityType: "Allocation",
       entityId: alloc.id,
-      message: `Soft lock scaduto: ${alloc.resource.name} su ${alloc.initiative.title}`,
+      message: `Soft lock scaduto: ${alloc.resource.lastName} ${alloc.resource.firstName} su ${alloc.initiative.title}`,
     });
   }
 

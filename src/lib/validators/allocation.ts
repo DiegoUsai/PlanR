@@ -13,7 +13,7 @@ export const createAllocationSchema = z.object({
   allocationPercentage: z.number().int().min(1).max(100),
   startDate: z.string().date(),
   endDate: z.string().date(),
-  allocatedEffortDays: z.number().positive(),
+  allocatedEffortDays: z.number().positive().optional(),
   roleInInitiative: resourceRoleEnum,
   affiancamento: z.boolean().default(false),
   isSeniorAffiancamento: z.boolean().default(false),

@@ -2,6 +2,15 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 async function main() {
   console.log("Seeding database...");
 
@@ -15,6 +24,18 @@ async function main() {
     },
   });
   console.log("BU Configuration created");
+
+  // Clients
+  const clientMinistero = await prisma.client.create({
+    data: { slug: slugify("Ministero della Giustizia"), name: "Ministero della Giustizia" },
+  });
+  const clientRegione = await prisma.client.create({
+    data: { slug: slugify("Regione Emilia-Romagna"), name: "Regione Emilia-Romagna" },
+  });
+  const clientComune = await prisma.client.create({
+    data: { slug: slugify("Comune di Bologna"), name: "Comune di Bologna" },
+  });
+  console.log("3 clients created");
 
   // Applications
   const sibarDoc = await prisma.application.create({
@@ -54,7 +75,7 @@ async function main() {
     data: {
       identifier: "CTR-2026-001",
       type: "SUBAPPALTO",
-      client: "Ministero della Giustizia",
+      clientSlug: clientMinistero.slug,
       amount: 450000,
       startDate: new Date("2026-01-01"),
       endDate: new Date("2026-12-31"),
@@ -67,7 +88,7 @@ async function main() {
     data: {
       identifier: "CTR-2026-002",
       type: "APPALTO",
-      client: "Regione Emilia-Romagna",
+      clientSlug: clientRegione.slug,
       amount: 280000,
       startDate: new Date("2026-03-01"),
       endDate: new Date("2027-02-28"),
@@ -80,7 +101,7 @@ async function main() {
     data: {
       identifier: "CTR-2026-003",
       type: "APPALTO",
-      client: "Comune di Bologna",
+      clientSlug: clientComune.slug,
       amount: 120000,
       startDate: new Date("2026-06-01"),
       endDate: new Date("2027-05-31"),
@@ -90,19 +111,20 @@ async function main() {
   });
   console.log("3 contracts created");
 
-  // Resources
+  // Resources (lastName firstName format — matches Factorial CSV convention)
   const resources = await Promise.all([
     prisma.resource.create({
       data: {
-        name: "Rossi Marco", role: "TECH_LEAD", level: "SENIOR", type: "INTERNA",
+        lastName: "Rossi", firstName: "Marco", employeeId: "EMP-001",
+        role: "TECH_LEAD", level: "SENIOR", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
         joinDate: new Date("2020-03-01"),
-        managedApps: { connect: [] },
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Bianchi Laura", role: "PM", level: "SENIOR", type: "INTERNA",
+        lastName: "Bianchi", firstName: "Laura", employeeId: "EMP-002",
+        role: "PM", level: "SENIOR", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2019-06-01"),
         managedApps: { connect: [{ id: sibarDoc.id }, { id: protocollo.id }] },
@@ -110,56 +132,64 @@ async function main() {
     }),
     prisma.resource.create({
       data: {
-        name: "Verdi Andrea", role: "FE", level: "MID", type: "INTERNA",
+        lastName: "Verdi", firstName: "Andrea", employeeId: "EMP-003",
+        role: "FE", level: "MID", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2022-01-15"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Neri Sara", role: "FE", level: "JUNIOR", type: "INTERNA",
+        lastName: "Neri", firstName: "Sara", employeeId: "EMP-004",
+        role: "FE", level: "JUNIOR", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2025-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Colombo Luca", role: "BE", level: "SENIOR", type: "INTERNA",
+        lastName: "Colombo", firstName: "Luca", employeeId: "EMP-005",
+        role: "BE", level: "SENIOR", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
         joinDate: new Date("2018-04-01"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Ferrari Elena", role: "BE", level: "MID", type: "INTERNA",
+        lastName: "Ferrari", firstName: "Elena", employeeId: "EMP-006",
+        role: "BE", level: "MID", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2023-02-01"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Russo Paolo", role: "ANALISTA", level: "SENIOR", type: "INTERNA",
+        lastName: "Russo", firstName: "Paolo", employeeId: "EMP-007",
+        role: "ANALISTA", level: "SENIOR", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
         joinDate: new Date("2017-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Galli Chiara", role: "BA_SENIOR", level: "SENIOR", type: "INTERNA",
+        lastName: "Galli", firstName: "Chiara", employeeId: "EMP-008",
+        role: "BA_SENIOR", level: "SENIOR", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2021-05-01"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Moretti Davide", role: "ARCHITETTO", level: "SENIOR", type: "INTERNA",
+        lastName: "Moretti", firstName: "Davide", employeeId: "EMP-009",
+        role: "ARCHITETTO", level: "SENIOR", type: "INTERNA",
         belonging: "ENGINEERING_EXCELLENCE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2016-01-01"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Conti Alessia", role: "FE", level: "MID", type: "ESTERNA",
+        lastName: "Conti", firstName: "Alessia",
+        role: "FE", level: "MID", type: "ESTERNA",
         belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2026-01-15"),
         notes: "Consulente XYZ Solutions",
@@ -167,14 +197,16 @@ async function main() {
     }),
     prisma.resource.create({
       data: {
-        name: "Ricci Matteo", role: "BE", level: "MID", type: "INTERNA",
+        lastName: "Ricci", firstName: "Matteo", employeeId: "EMP-010",
+        role: "BE", level: "MID", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false, attivo: true,
         joinDate: new Date("2021-11-01"),
       },
     }),
     prisma.resource.create({
       data: {
-        name: "Lombardi Anna", role: "ANALISTA", level: "MID", type: "INTERNA",
+        lastName: "Lombardi", firstName: "Anna", employeeId: "EMP-011",
+        role: "ANALISTA", level: "MID", type: "INTERNA",
         belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false, attivo: true,
         joinDate: new Date("2024-03-01"),
       },
@@ -204,13 +236,13 @@ async function main() {
   }
   console.log("Resource parameters created");
 
-  // Initiatives
+  // Initiatives (code = Jira epic key)
   const mevFirma = await prisma.initiative.create({
     data: {
+      code: "DOC-142",
       applicationId: sibarDoc.id,
       moduleId: modFirma.id,
       contractId: contrattoPA.id,
-      jiraEpicId: "DOC-142",
       title: "Firma massiva documenti con OTP",
       description: "Implementazione firma massiva con autenticazione OTP per lotti fino a 500 documenti",
       type: "MEV",
@@ -229,10 +261,10 @@ async function main() {
 
   const madProtocollo = await prisma.initiative.create({
     data: {
+      code: "DOC-158",
       applicationId: protocollo.id,
       moduleId: modPEC.id,
       contractId: contrattoPA.id,
-      jiraEpicId: "DOC-158",
       title: "Adeguamento PEC a standard AgID 2026",
       description: "Adeguamento modulo PEC alle nuove linee guida AgID sulla interoperabilita",
       type: "MAD",
@@ -251,9 +283,9 @@ async function main() {
 
   const mevConservazione = await prisma.initiative.create({
     data: {
+      code: "DOC-167",
       applicationId: conservazione.id,
       contractId: contrattoEnte.id,
-      jiraEpicId: "DOC-167",
       title: "Migrazione formato conservazione a UNI 11386:2025",
       type: "MEV",
       priority: "MEDIA",
@@ -272,9 +304,9 @@ async function main() {
 
   const softLockInit = await prisma.initiative.create({
     data: {
+      code: "DOC-175",
       applicationId: fatturazione.id,
       contractId: contrattoFatt.id,
-      jiraEpicId: "DOC-175",
       title: "Integrazione SDI v2 per fatturazione B2B",
       type: "MEV",
       priority: "MEDIA",
@@ -289,10 +321,10 @@ async function main() {
 
   const pendingInit = await prisma.initiative.create({
     data: {
+      code: "DOC-180",
       applicationId: sibarDoc.id,
       moduleId: modWorkflow.id,
       contractId: contrattoPA.id,
-      jiraEpicId: "DOC-180",
       title: "Workflow approvativo multi-livello con delega",
       type: "MEV",
       priority: "BASSA",
@@ -310,7 +342,6 @@ async function main() {
   const [rossi, bianchi, verdi, neri, colombo, ferrari, russo, galli, moretti, conti, ricci, lombardi] = resources;
 
   await Promise.all([
-    // Firma massiva - hard allocations
     prisma.allocation.create({
       data: {
         initiativeId: mevFirma.id,
@@ -376,8 +407,6 @@ async function main() {
         roleInInitiative: "ANALISTA",
       },
     }),
-
-    // Adeguamento PEC
     prisma.allocation.create({
       data: {
         initiativeId: madProtocollo.id,
@@ -402,8 +431,6 @@ async function main() {
         roleInInitiative: "ANALISTA",
       },
     }),
-
-    // Soft lock - SDI v2 (softLockExpiry on allocation now)
     prisma.allocation.create({
       data: {
         initiativeId: softLockInit.id,

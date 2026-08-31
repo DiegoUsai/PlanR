@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       },
       _count: { select: { allocations: true } },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 
   return NextResponse.json(resources);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -13,9 +13,11 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import Chip from "@mui/material/Chip";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import InputAdornment from "@mui/material/InputAdornment";
 import Add from "@mui/icons-material/Add";
 import Edit from "@mui/icons-material/Edit";
 import Delete from "@mui/icons-material/Delete";
+import Search from "@mui/icons-material/Search";
 import dayjs from "dayjs";
 import {
   INITIATIVE_TYPE_LABELS,
@@ -30,6 +32,7 @@ import AllocationManager from "@/components/initiatives/AllocationManager";
 
 interface Initiative {
   id: string;
+  code: string;
   title: string;
   description: string | null;
   type: string;
@@ -59,6 +62,7 @@ interface ContractOption {
 }
 
 const emptyForm = {
+  code: "",
   title: "",
   applicationId: "",
   contractId: "",
@@ -83,6 +87,25 @@ export default function IniziativePage() {
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<Initiative | null>(null);
   const [allocTarget, setAllocTarget] = useState<Initiative | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [filterPriority, setFilterPriority] = useState<string | null>(null);
+
+  const filteredInitiatives = useMemo(() => {
+    let result = initiatives;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) ||
+          i.code.toLowerCase().includes(q) ||
+          i.application?.name.toLowerCase().includes(q)
+      );
+    }
+    if (filterStatus) result = result.filter((i) => i.status === filterStatus);
+    if (filterPriority) result = result.filter((i) => i.priority === filterPriority);
+    return result;
+  }, [initiatives, search, filterStatus, filterPriority]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -117,6 +140,7 @@ export default function IniziativePage() {
   const handleEdit = (init: Initiative) => {
     setEditing(init);
     setForm({
+      code: init.code || "",
       title: init.title,
       applicationId: init.applicationId,
       contractId: init.contractId,
@@ -135,6 +159,7 @@ export default function IniziativePage() {
 
   const handleSave = async () => {
     const data = {
+      code: form.code,
       title: form.title,
       applicationId: form.applicationId,
       contractId: form.contractId,
@@ -198,6 +223,7 @@ export default function IniziativePage() {
   };
 
   const columns: GridColDef[] = [
+    { field: "code", headerName: "Codice", width: 110 },
     { field: "title", headerName: "Titolo", flex: 1, minWidth: 200 },
     {
       field: "appName",
@@ -329,9 +355,49 @@ export default function IniziativePage() {
         </Button>
       </Box>
 
+      <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField
+          size="small"
+          placeholder="Cerca iniziativa..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ minWidth: 200 }}
+        />
+        {Object.entries(PRIORITY_LABELS).map(([v, l]) => (
+          <Chip
+            key={v}
+            label={l}
+            size="small"
+            variant={filterPriority === v ? "filled" : "outlined"}
+            color={filterPriority === v ? (PRIORITY_COLORS[v] || "default") : "default"}
+            onClick={() => setFilterPriority(filterPriority === v ? null : v)}
+          />
+        ))}
+        <Box sx={{ mx: 0.5, borderLeft: "1px solid", borderColor: "divider", height: 24 }} />
+        {Object.entries(INITIATIVE_STATUS_LABELS).map(([v, l]) => (
+          <Chip
+            key={v}
+            label={l}
+            size="small"
+            variant={filterStatus === v ? "filled" : "outlined"}
+            color={filterStatus === v ? (INITIATIVE_STATUS_COLORS[v] || "default") : "default"}
+            onClick={() => setFilterStatus(filterStatus === v ? null : v)}
+          />
+        ))}
+      </Box>
+
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <DataGrid
-          rows={initiatives}
+          rows={filteredInitiatives}
           columns={columns}
           loading={loading}
           density="compact"
@@ -370,12 +436,19 @@ export default function IniziativePage() {
             }}
           >
             <TextField
+              label="Codice (Jira)"
+              value={form.code}
+              onChange={(e) => updateForm("code", e.target.value)}
+              required
+              size="small"
+              placeholder="DOC-142"
+            />
+            <TextField
               label="Titolo"
               value={form.title}
               onChange={(e) => updateForm("title", e.target.value)}
               required
               size="small"
-              sx={{ gridColumn: "1 / -1" }}
             />
             <TextField
               select
@@ -511,7 +584,7 @@ export default function IniziativePage() {
             onClick={handleSave}
             variant="contained"
             disabled={
-              !form.title || !form.applicationId || !form.contractId
+              !form.code || !form.title || !form.applicationId || !form.contractId
             }
           >
             Salva
@@ -529,8 +602,7 @@ export default function IniziativePage() {
 
       {allocTarget && (
         <AllocationManager
-          initiativeId={allocTarget.id}
-          initiativeTitle={allocTarget.title}
+          initiative={allocTarget}
           open={!!allocTarget}
           onClose={() => {
             setAllocTarget(null);

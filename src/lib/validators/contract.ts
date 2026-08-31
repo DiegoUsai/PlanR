@@ -5,7 +5,7 @@ const contractTypeEnum = z.enum(["SUBAPPALTO", "APPALTO"]);
 export const createContractSchema = z.object({
   identifier: z.string().min(1, "Identificativo obbligatorio"),
   type: contractTypeEnum,
-  client: z.string().min(1, "Cliente obbligatorio"),
+  clientSlug: z.string().min(1, "Cliente obbligatorio"),
   amount: z.number().positive("Importo deve essere positivo"),
   startDate: z.string().date(),
   endDate: z.string().date(),

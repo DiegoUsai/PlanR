@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAllocationSchema } from "@/lib/validators/allocation";
+import { calculateEffortDays } from "@/lib/business-rules/working-days";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -34,9 +35,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { startDate, endDate, softLockExpiry, ...data } = parsed.data;
+  const { startDate, endDate, softLockExpiry, allocatedEffortDays, ...data } = parsed.data;
   const allocationStart = new Date(startDate);
   const allocationEnd = new Date(endDate);
+
+  const effortDays = allocatedEffortDays
+    ?? calculateEffortDays(allocationStart, allocationEnd, data.allocationPercentage);
 
   const initiative = await prisma.initiative.findUnique({
     where: { id: data.initiativeId },
@@ -47,19 +51,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Iniziativa non trovata" }, { status: 404 });
   }
 
+  const warnings: string[] = [];
+
   if (allocationEnd > initiative.contract.endDate) {
+    warnings.push(
+      `Data fine allocazione (${allocationEnd.toLocaleDateString("it-IT")}) supera data fine contratto (${initiative.contract.endDate.toLocaleDateString("it-IT")})`
+    );
+  }
+
+  if (warnings.length > 0 && !body.confirm) {
     return NextResponse.json(
-      {
-        error: "Data fine allocazione supera data fine contratto",
-        contractEndDate: initiative.contract.endDate,
-      },
-      { status: 422 }
+      { warnings, requiresConfirmation: true },
+      { status: 409 }
     );
   }
 
   const allocation = await prisma.allocation.create({
     data: {
       ...data,
+      allocatedEffortDays: effortDays,
       startDate: allocationStart,
       endDate: allocationEnd,
       softLockExpiry: softLockExpiry ? new Date(softLockExpiry) : null,

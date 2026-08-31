@@ -24,7 +24,7 @@ export const createInitiativeSchema = z.object({
   applicationId: z.string().uuid(),
   moduleId: z.string().uuid().nullable().optional(),
   contractId: z.string().uuid(),
-  jiraEpicId: z.string().optional(),
+  code: z.string().min(1, "Codice obbligatorio"),
   title: z.string().min(1, "Titolo obbligatorio"),
   description: z.string().optional(),
   type: initiativeTypeEnum,

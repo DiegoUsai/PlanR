@@ -21,11 +21,17 @@ import dayjs from "dayjs";
 import { CONTRACT_TYPE_LABELS } from "@/lib/constants";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 
+interface ClientOption {
+  slug: string;
+  name: string;
+}
+
 interface Contract {
   id: string;
   identifier: string;
   type: string;
-  client: string;
+  clientSlug: string;
+  client: ClientOption;
   amount: string;
   startDate: string;
   endDate: string;
@@ -43,7 +49,8 @@ interface AppOption {
 const emptyForm = {
   identifier: "",
   type: "SUBAPPALTO",
-  client: "",
+  clientSlug: "",
+  clientInput: "",
   amount: "",
   startDate: "",
   endDate: "",
@@ -54,6 +61,7 @@ const emptyForm = {
 
 export default function ContrattiPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
   const [applications, setApplications] = useState<AppOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -63,11 +71,13 @@ export default function ContrattiPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [cRes, aRes] = await Promise.all([
+    const [cRes, clRes, aRes] = await Promise.all([
       fetch("/api/contracts"),
+      fetch("/api/clients"),
       fetch("/api/applications"),
     ]);
     setContracts(await cRes.json());
+    setClients(await clRes.json());
     setApplications(await aRes.json());
     setLoading(false);
   }, []);
@@ -91,7 +101,8 @@ export default function ContrattiPage() {
     setForm({
       identifier: contract.identifier,
       type: contract.type,
-      client: contract.client,
+      clientSlug: contract.clientSlug,
+      clientInput: contract.client?.name || "",
       amount: String(contract.amount),
       startDate: contract.startDate.split("T")[0],
       endDate: contract.endDate.split("T")[0],
@@ -103,10 +114,31 @@ export default function ContrattiPage() {
   };
 
   const handleSave = async () => {
+    let clientSlug = form.clientSlug;
+
+    if (!clientSlug && form.clientInput) {
+      try {
+        const clientRes = await fetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: form.clientInput }),
+        });
+        if (!clientRes.ok) {
+          alert("Errore nella creazione del cliente");
+          return;
+        }
+        const newClient = await clientRes.json();
+        clientSlug = newClient.slug;
+      } catch {
+        alert("Errore di rete");
+        return;
+      }
+    }
+
     const data = {
       identifier: form.identifier,
       type: form.type,
-      client: form.client,
+      clientSlug,
       amount: Number(form.amount),
       startDate: form.startDate,
       endDate: form.endDate,
@@ -171,7 +203,13 @@ export default function ContrattiPage() {
         />
       ),
     },
-    { field: "client", headerName: "Cliente", flex: 1, minWidth: 140 },
+    {
+      field: "clientName",
+      headerName: "Cliente",
+      flex: 1,
+      minWidth: 140,
+      valueGetter: (_v: unknown, row: Contract) => row.client?.name || "-",
+    },
     {
       field: "amount",
       headerName: "Importo",
@@ -319,11 +357,47 @@ export default function ContrattiPage() {
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
-              label="Cliente"
-              value={form.client}
-              onChange={(e) => updateForm("client", e.target.value)}
-              required
+            <Autocomplete
+              freeSolo
+              options={clients}
+              getOptionLabel={(opt) =>
+                typeof opt === "string" ? opt : opt.name
+              }
+              value={
+                clients.find((c) => c.slug === form.clientSlug) || null
+              }
+              inputValue={form.clientInput}
+              onInputChange={(_, val) => {
+                updateForm("clientInput", val);
+                const match = clients.find(
+                  (c) => c.name.toLowerCase() === val.toLowerCase()
+                );
+                updateForm("clientSlug", match ? match.slug : "");
+              }}
+              onChange={(_, val) => {
+                if (val && typeof val !== "string") {
+                  updateForm("clientSlug", val.slug);
+                  updateForm("clientInput", val.name);
+                }
+              }}
+              isOptionEqualToValue={(opt, val) =>
+                typeof opt === "string" || typeof val === "string"
+                  ? opt === val
+                  : opt.slug === val.slug
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Cliente"
+                  required
+                  size="small"
+                  helperText={
+                    form.clientInput && !form.clientSlug
+                      ? "Nuovo cliente — verra creato al salvataggio"
+                      : undefined
+                  }
+                />
+              )}
               size="small"
               sx={{ gridColumn: "1 / -1" }}
             />
@@ -400,7 +474,7 @@ export default function ContrattiPage() {
             onClick={handleSave}
             variant="contained"
             disabled={
-              !form.identifier || !form.client || !form.startDate || !form.endDate
+              !form.identifier || !form.clientInput || !form.startDate || !form.endDate
             }
           >
             Salva

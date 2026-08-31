@@ -190,11 +190,23 @@ model Module {
   @@map("modules")
 }
 
+model Client {
+  slug      String   @id
+  name      String
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contracts Contract[]
+
+  @@map("clients")
+}
+
 model Contract {
   id                  String       @id @default(uuid())
   identifier          String
   type                ContractType
-  client              String
+  clientSlug          String
   amount              Decimal      @db.Decimal(12, 2)
   startDate           DateTime     @db.Date
   endDate             DateTime     @db.Date
@@ -203,6 +215,7 @@ model Contract {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
+  client       Client        @relation(fields: [clientSlug], references: [slug])
   applications Application[] @relation("ApplicationContracts")
   initiatives  Initiative[]
 
@@ -211,10 +224,10 @@ model Contract {
 
 model Initiative {
   id                    String            @id @default(uuid())
+  code                  String            @unique
   applicationId         String
   moduleId              String?
   contractId            String
-  jiraEpicId            String?
   title                 String
   description           String?           @db.Text
   type                  InitiativeType
@@ -248,7 +261,9 @@ model Initiative {
 
 model Resource {
   id            String            @id @default(uuid())
-  name          String
+  firstName     String
+  lastName      String
+  employeeId    String?
   role          ResourceRole
   level         ResourceLevel
   type          ResourceType

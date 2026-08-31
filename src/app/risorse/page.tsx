@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -15,9 +15,12 @@ import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import InputAdornment from "@mui/material/InputAdornment";
 import Add from "@mui/icons-material/Add";
 import Edit from "@mui/icons-material/Edit";
 import Delete from "@mui/icons-material/Delete";
+import Search from "@mui/icons-material/Search";
+import Assignment from "@mui/icons-material/Assignment";
 import {
   RESOURCE_ROLE_LABELS,
   RESOURCE_LEVEL_LABELS,
@@ -26,6 +29,7 @@ import {
   RESOURCE_POOL_LABELS,
 } from "@/lib/constants";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import ResourceAllocationsDialog from "@/components/resources/ResourceAllocationsDialog";
 
 interface ResourceParam {
   weeklyHours: string;
@@ -35,7 +39,9 @@ interface ResourceParam {
 
 interface Resource {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  employeeId: string | null;
   role: string;
   level: string;
   type: string;
@@ -49,7 +55,9 @@ interface Resource {
 }
 
 const emptyForm = {
-  name: "",
+  firstName: "",
+  lastName: "",
+  employeeId: "",
   role: "FE",
   level: "MID",
   type: "INTERNA" as string,
@@ -70,6 +78,25 @@ export default function RisorsePage() {
   const [editing, setEditing] = useState<Resource | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<Resource | null>(null);
+  const [allocTarget, setAllocTarget] = useState<Resource | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState<string | null>(null);
+  const [filterPool, setFilterPool] = useState<string | null>(null);
+
+  const filteredResources = useMemo(() => {
+    let result = resources;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (r) =>
+          `${r.lastName} ${r.firstName}`.toLowerCase().includes(q) ||
+          r.employeeId?.toLowerCase().includes(q)
+      );
+    }
+    if (filterRole) result = result.filter((r) => r.role === filterRole);
+    if (filterPool) result = result.filter((r) => r.pool === filterPool);
+    return result;
+  }, [resources, search, filterRole, filterPool]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -96,7 +123,9 @@ export default function RisorsePage() {
     const p = resource.parameters[0];
     setEditing(resource);
     setForm({
-      name: resource.name,
+      firstName: resource.firstName,
+      lastName: resource.lastName,
+      employeeId: resource.employeeId || "",
       role: resource.role,
       level: resource.level,
       type: resource.type,
@@ -115,7 +144,9 @@ export default function RisorsePage() {
   const handleSave = async () => {
     const { weeklyHours, dailyCost, productivityCoeff, ...rest } = form;
     const resourceData = {
-      name: rest.name,
+      firstName: rest.firstName,
+      lastName: rest.lastName,
+      employeeId: rest.employeeId || undefined,
       role: rest.role,
       level: rest.level,
       type: rest.type,
@@ -204,7 +235,14 @@ export default function RisorsePage() {
   };
 
   const columns: GridColDef[] = [
-    { field: "name", headerName: "Nome", flex: 1, minWidth: 150 },
+    {
+      field: "nominativo",
+      headerName: "Nominativo",
+      flex: 1,
+      minWidth: 180,
+      valueGetter: (_v: unknown, row: Resource) =>
+        `${row.lastName} ${row.firstName}`,
+    },
     {
       field: "role",
       headerName: "Ruolo",
@@ -259,12 +297,22 @@ export default function RisorsePage() {
     {
       field: "actions",
       headerName: "",
-      width: 90,
+      width: 120,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
       renderCell: ({ row }) => (
         <>
+          <IconButton
+            size="small"
+            title="Allocazioni"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAllocTarget(row);
+            }}
+          >
+            <Assignment fontSize="small" />
+          </IconButton>
           <IconButton
             size="small"
             onClick={(e) => {
@@ -312,9 +360,49 @@ export default function RisorsePage() {
         </Button>
       </Box>
 
+      <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField
+          size="small"
+          placeholder="Cerca risorsa..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ minWidth: 200 }}
+        />
+        {Object.entries(RESOURCE_ROLE_LABELS).map(([v, l]) => (
+          <Chip
+            key={v}
+            label={l}
+            size="small"
+            variant={filterRole === v ? "filled" : "outlined"}
+            color={filterRole === v ? "primary" : "default"}
+            onClick={() => setFilterRole(filterRole === v ? null : v)}
+          />
+        ))}
+        <Box sx={{ mx: 0.5, borderLeft: "1px solid", borderColor: "divider", height: 24 }} />
+        {Object.entries(RESOURCE_POOL_LABELS).map(([v, l]) => (
+          <Chip
+            key={v}
+            label={l}
+            size="small"
+            variant={filterPool === v ? "filled" : "outlined"}
+            color={filterPool === v ? "secondary" : "default"}
+            onClick={() => setFilterPool(filterPool === v ? null : v)}
+          />
+        ))}
+      </Box>
+
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <DataGrid
-          rows={resources}
+          rows={filteredResources}
           columns={columns}
           loading={loading}
           density="compact"
@@ -353,12 +441,24 @@ export default function RisorsePage() {
             }}
           >
             <TextField
-              label="Nome"
-              value={form.name}
-              onChange={(e) => updateForm("name", e.target.value)}
+              label="Cognome"
+              value={form.lastName}
+              onChange={(e) => updateForm("lastName", e.target.value)}
               required
               size="small"
-              sx={{ gridColumn: "1 / -1" }}
+            />
+            <TextField
+              label="Nome"
+              value={form.firstName}
+              onChange={(e) => updateForm("firstName", e.target.value)}
+              required
+              size="small"
+            />
+            <TextField
+              label="ID Dipendente"
+              value={form.employeeId}
+              onChange={(e) => updateForm("employeeId", e.target.value)}
+              size="small"
             />
             <TextField
               select
@@ -491,7 +591,7 @@ export default function RisorsePage() {
           <Button
             onClick={handleSave}
             variant="contained"
-            disabled={!form.name}
+            disabled={!form.firstName || !form.lastName}
           >
             Salva
           </Button>
@@ -501,10 +601,19 @@ export default function RisorsePage() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Elimina Risorsa"
-        message={`Eliminare ${deleteTarget?.name}? L'operazione non e reversibile.`}
+        message={`Eliminare ${deleteTarget?.lastName} ${deleteTarget?.firstName}? L'operazione non e reversibile.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {allocTarget && (
+        <ResourceAllocationsDialog
+          open
+          onClose={() => setAllocTarget(null)}
+          resourceId={allocTarget.id}
+          resourceName={`${allocTarget.lastName} ${allocTarget.firstName}`}
+        />
+      )}
     </Box>
   );
 }

@@ -48,7 +48,7 @@ export async function GET() {
           },
         },
       },
-      orderBy: [{ role: "asc" }, { name: "asc" }],
+      orderBy: [{ role: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
     });
 
     const weeks: { label: string; start: string; end: string }[] = [];
@@ -165,7 +165,7 @@ export async function GET() {
 
       rows.push({
         resourceId: resource.id,
-        resourceName: resource.name,
+        resourceName: `${resource.lastName} ${resource.firstName}`,
         role: resource.role,
         level: resource.level,
         type: resource.type,

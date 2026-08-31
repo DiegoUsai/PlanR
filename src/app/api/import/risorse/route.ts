@@ -71,11 +71,14 @@ export async function POST(request: NextRequest) {
     const row = data[i];
     const rowNum = i + 2;
 
-    const name = row.nominativo?.trim();
-    if (!name) {
+    const nominativo = row.nominativo?.trim();
+    if (!nominativo) {
       rowErrors.push({ row: rowNum, field: "nominativo", message: "Nominativo mancante" });
       continue;
     }
+    const parts = nominativo.split(/\s+/);
+    const lastName = parts[0] || "";
+    const firstName = parts.slice(1).join(" ") || "";
 
     const role = ROLE_MAP[row.ruolo?.trim()];
     if (!role) {
@@ -109,7 +112,9 @@ export async function POST(request: NextRequest) {
 
     const isPTF = row.is_ptf?.trim().toLowerCase() === "true" || row.is_ptf?.trim() === "1";
 
-    const existing = await prisma.resource.findFirst({ where: { name } });
+    const existing = await prisma.resource.findFirst({
+      where: { lastName, firstName },
+    });
 
     if (existing) {
       await prisma.resource.update({
@@ -128,7 +133,8 @@ export async function POST(request: NextRequest) {
     } else {
       await prisma.resource.create({
         data: {
-          name,
+          lastName,
+          firstName,
           role: role as never,
           level: level as never,
           type: type as never,

@@ -5,6 +5,7 @@ import { createContractSchema } from "@/lib/validators/contract";
 export async function GET() {
   const contracts = await prisma.contract.findMany({
     include: {
+      client: true,
       applications: true,
       _count: { select: { initiatives: true } },
     },
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
         ? { connect: applicationIds.map((id) => ({ id })) }
         : undefined,
     },
-    include: { applications: true },
+    include: { client: true, applications: true },
   });
 
   return NextResponse.json(contract, { status: 201 });

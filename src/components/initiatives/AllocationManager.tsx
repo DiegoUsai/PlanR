@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -36,12 +36,13 @@ interface Allocation {
   affiancamento: boolean;
   isSeniorAffiancamento: boolean;
   notes: string | null;
-  resource: { id: string; name: string; role: string };
+  resource: { id: string; lastName: string; firstName: string; role: string };
 }
 
 interface ResourceOption {
   id: string;
-  name: string;
+  lastName: string;
+  firstName: string;
   role: string;
 }
 
@@ -59,14 +60,23 @@ const emptyForm = {
   notes: "",
 };
 
+interface InitiativeContext {
+  id: string;
+  code: string;
+  title: string;
+  estimatedDays: string | null;
+  desiredStartDate: string | null;
+  desiredEndDate: string | null;
+  application: { name: string };
+  contract: { identifier: string };
+}
+
 export default function AllocationManager({
-  initiativeId,
-  initiativeTitle,
+  initiative,
   open,
   onClose,
 }: {
-  initiativeId: string;
-  initiativeTitle: string;
+  initiative: InitiativeContext;
   open: boolean;
   onClose: () => void;
 }) {
@@ -77,19 +87,21 @@ export default function AllocationManager({
   const [editing, setEditing] = useState<Allocation | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [pendingConfirm, setPendingConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Allocation | null>(null);
 
   const fetchAllocations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/allocations?initiativeId=${initiativeId}`);
+      const res = await fetch(`/api/allocations?initiativeId=${initiative.id}`);
       if (res.ok) setAllocations(await res.json());
     } catch {
       /* ignore */
     } finally {
       setLoading(false);
     }
-  }, [initiativeId]);
+  }, [initiative.id]);
 
   const fetchResources = useCallback(async () => {
     try {
@@ -99,7 +111,8 @@ export default function AllocationManager({
         setResources(
           data.map((r: ResourceOption) => ({
             id: r.id,
-            name: r.name,
+            lastName: r.lastName,
+            firstName: r.firstName,
             role: r.role,
           }))
         );
@@ -124,6 +137,8 @@ export default function AllocationManager({
     setEditing(null);
     setForm(emptyForm);
     setError(null);
+    setWarnings([]);
+    setPendingConfirm(false);
     setFormOpen(true);
   };
 
@@ -143,13 +158,15 @@ export default function AllocationManager({
       notes: alloc.notes || "",
     });
     setError(null);
+    setWarnings([]);
+    setPendingConfirm(false);
     setFormOpen(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (confirm = false) => {
     setError(null);
-    const data = {
-      initiativeId,
+    const data: Record<string, unknown> = {
+      initiativeId: initiative.id,
       resourceId: form.resourceId,
       lockType: form.lockType,
       softLockExpiry:
@@ -159,12 +176,18 @@ export default function AllocationManager({
       allocationPercentage: Number(form.allocationPercentage),
       startDate: form.startDate,
       endDate: form.endDate,
-      allocatedEffortDays: Number(form.allocatedEffortDays),
+      allocatedEffortDays: form.allocatedEffortDays
+        ? Number(form.allocatedEffortDays)
+        : undefined,
       roleInInitiative: form.roleInInitiative,
       affiancamento: form.affiancamento,
       isSeniorAffiancamento: form.isSeniorAffiancamento,
       notes: form.notes || undefined,
     };
+
+    if (confirm) {
+      data.confirm = true;
+    }
 
     try {
       const url = editing
@@ -178,12 +201,19 @@ export default function AllocationManager({
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        setError(err.error || "Errore nel salvataggio");
+        const body = await res.json();
+        if (body.requiresConfirmation && body.warnings) {
+          setWarnings(body.warnings);
+          setPendingConfirm(true);
+          return;
+        }
+        setError(body.error || "Errore nel salvataggio");
         return;
       }
 
       setFormOpen(false);
+      setWarnings([]);
+      setPendingConfirm(false);
       fetchAllocations();
     } catch {
       setError("Errore di rete");
@@ -206,12 +236,29 @@ export default function AllocationManager({
 
   const selectedResource = resources.find((r) => r.id === form.resourceId);
 
+  const autoEffort = useMemo(() => {
+    if (!form.startDate || !form.endDate) return null;
+    const start = new Date(form.startDate);
+    const end = new Date(form.endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return null;
+    let count = 0;
+    const current = new Date(start);
+    while (current <= end) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) count++;
+      current.setDate(current.getDate() + 1);
+    }
+    const pct = Number(form.allocationPercentage) || 100;
+    return Math.round((count * pct) / 100 * 10) / 10;
+  }, [form.startDate, form.endDate, form.allocationPercentage]);
+
   const columns: GridColDef[] = [
     {
       field: "resourceName",
       headerName: "Risorsa",
       width: 150,
-      valueGetter: (_v: unknown, row: Allocation) => row.resource?.name || "-",
+      valueGetter: (_v: unknown, row: Allocation) =>
+        row.resource ? `${row.resource.lastName} ${row.resource.firstName}` : "-",
     },
     {
       field: "roleInInitiative",
@@ -285,9 +332,42 @@ export default function AllocationManager({
     <>
       <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle>
-          Allocazioni — {initiativeTitle}
+          Allocazioni — {initiative.code} {initiative.title}
         </DialogTitle>
         <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              flexWrap: "wrap",
+              mb: 2,
+              p: 1.5,
+              bgcolor: "action.hover",
+              borderRadius: 1,
+            }}
+          >
+            <Typography variant="body2">
+              <strong>Applicativo:</strong> {initiative.application.name}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Contratto:</strong> {initiative.contract.identifier}
+            </Typography>
+            {initiative.estimatedDays && (
+              <Typography variant="body2">
+                <strong>GG stimati:</strong> {initiative.estimatedDays}
+              </Typography>
+            )}
+            {initiative.desiredStartDate && (
+              <Typography variant="body2">
+                <strong>Inizio:</strong> {dayjs(initiative.desiredStartDate).format("DD/MM/YYYY")}
+              </Typography>
+            )}
+            {initiative.desiredEndDate && (
+              <Typography variant="body2">
+                <strong>Fine:</strong> {dayjs(initiative.desiredEndDate).format("DD/MM/YYYY")}
+              </Typography>
+            )}
+          </Box>
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
             <Button
               variant="contained"
@@ -333,6 +413,13 @@ export default function AllocationManager({
               {error}
             </Alert>
           )}
+          {warnings.length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {warnings.map((w, i) => (
+                <div key={i}>{w}</div>
+              ))}
+            </Alert>
+          )}
           <Box
             sx={{
               display: "grid",
@@ -358,7 +445,7 @@ export default function AllocationManager({
             >
               {resources.map((r) => (
                 <MenuItem key={r.id} value={r.id}>
-                  {r.name} ({RESOURCE_ROLE_LABELS[r.role] || r.role})
+                  {r.lastName} {r.firstName} ({RESOURCE_ROLE_LABELS[r.role] || r.role})
                 </MenuItem>
               ))}
             </TextField>
@@ -403,12 +490,16 @@ export default function AllocationManager({
             <TextField
               label="GG effort allocato"
               type="number"
-              value={form.allocatedEffortDays}
+              value={form.allocatedEffortDays || (autoEffort !== null ? String(autoEffort) : "")}
               onChange={(e) =>
                 updateForm("allocatedEffortDays", e.target.value)
               }
-              required
               size="small"
+              helperText={
+                autoEffort !== null && !form.allocatedEffortDays
+                  ? `Calcolato: ${autoEffort} GG`
+                  : undefined
+              }
             />
 
             <TextField
@@ -490,19 +581,19 @@ export default function AllocationManager({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFormOpen(false)}>Annulla</Button>
+          <Button onClick={() => { setFormOpen(false); setWarnings([]); setPendingConfirm(false); }}>Annulla</Button>
           <Button
             variant="contained"
-            onClick={handleSave}
+            color={pendingConfirm ? "warning" : "primary"}
+            onClick={() => handleSave(pendingConfirm)}
             disabled={
               !form.resourceId ||
               !form.roleInInitiative ||
               !form.startDate ||
-              !form.endDate ||
-              !form.allocatedEffortDays
+              !form.endDate
             }
           >
-            Salva
+            {pendingConfirm ? "Conferma" : "Salva"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -510,7 +601,7 @@ export default function AllocationManager({
       <ConfirmDialog
         open={!!deleteTarget}
         title="Elimina allocazione"
-        message={`Eliminare l'allocazione di ${deleteTarget?.resource?.name}?`}
+        message={`Eliminare l'allocazione di ${deleteTarget?.resource?.lastName} ${deleteTarget?.resource?.firstName}?`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />

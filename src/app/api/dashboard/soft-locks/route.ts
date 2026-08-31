@@ -39,7 +39,7 @@ export async function GET() {
 
       return {
         id: alloc.id,
-        resourceName: alloc.resource.name,
+        resourceName: `${alloc.resource.lastName} ${alloc.resource.firstName}`,
         initiativeTitle: alloc.initiative.title,
         applicationName: alloc.initiative.application.name,
         effortDays: decimalToNumber(alloc.allocatedEffortDays),

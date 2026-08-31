@@ -9,6 +9,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   const contract = await prisma.contract.findUnique({
     where: { id },
     include: {
+      client: true,
       applications: true,
       initiatives: { orderBy: { createdAt: "desc" } },
     },
@@ -45,7 +46,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         ? { set: applicationIds.map((aid) => ({ id: aid })) }
         : undefined,
     },
-    include: { applications: true },
+    include: { client: true, applications: true },
   });
 
   return NextResponse.json(contract);

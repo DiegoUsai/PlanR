@@ -9,7 +9,9 @@ const resourceBelongingEnum = z.enum(["BU_DOCUMENTALE", "ENGINEERING_EXCELLENCE"
 const resourcePoolEnum = z.enum(["MANUTENZIONE", "EVOLUTIVA_ADEGUATIVA"]);
 
 export const createResourceSchema = z.object({
-  name: z.string().min(1, "Nominativo obbligatorio"),
+  firstName: z.string().min(1, "Nome obbligatorio"),
+  lastName: z.string().min(1, "Cognome obbligatorio"),
+  employeeId: z.string().optional(),
   role: resourceRoleEnum,
   level: resourceLevelEnum,
   type: resourceTypeEnum,

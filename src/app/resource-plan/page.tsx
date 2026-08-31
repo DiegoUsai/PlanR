@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
@@ -12,10 +12,14 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Popover from "@mui/material/Popover";
+import Avatar from "@mui/material/Avatar";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import {
   RESOURCE_ROLE_LABELS,
   RESOURCE_POOL_LABELS,
 } from "@/lib/constants";
+import ResourceAllocationsDialog from "@/components/resources/ResourceAllocationsDialog";
 
 const SAT_COLORS = {
   under: "#2196F3",
@@ -37,6 +41,14 @@ function getSatLabel(val: number): string {
   if (val <= 90) return "Attenzione";
   return "Sovra-allocazione";
 }
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0]?.[0] || "?").toUpperCase();
+}
+
+const MONTH_NAMES = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
 interface WeekAllocation {
   initiativeTitle: string;
@@ -69,15 +81,83 @@ interface PivotData {
   rows: ResourceRow[];
 }
 
+interface DisplayColumn {
+  label: string;
+  key: string;
+}
+
+interface DisplayCell {
+  saturation: number;
+  capacity: number;
+  allocated: number;
+  absenceHours: number;
+  allocations: WeekAllocation[];
+}
+
+type Zoom = "settimane" | "mesi";
+
+function aggregateToMonths(
+  weeks: PivotData["weeks"],
+  rowWeeks: WeekCell[]
+): { columns: DisplayColumn[]; cells: DisplayCell[] } {
+  const monthMap = new Map<string, { col: DisplayColumn; cells: WeekCell[] }>();
+
+  weeks.forEach((w, i) => {
+    const d = new Date(w.start);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!monthMap.has(key)) {
+      monthMap.set(key, {
+        col: { label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear().toString().slice(2)}`, key },
+        cells: [],
+      });
+    }
+    monthMap.get(key)!.cells.push(rowWeeks[i]);
+  });
+
+  const columns: DisplayColumn[] = [];
+  const cells: DisplayCell[] = [];
+
+  for (const { col, cells: wCells } of monthMap.values()) {
+    columns.push(col);
+    const totalCapacity = wCells.reduce((s, c) => s + c.capacity, 0);
+    const totalAllocated = wCells.reduce((s, c) => s + c.allocated, 0);
+    const totalAbsence = wCells.reduce((s, c) => s + c.absenceHours, 0);
+
+    const mergedAllocs = new Map<string, WeekAllocation>();
+    for (const c of wCells) {
+      for (const a of c.allocations) {
+        const existing = mergedAllocs.get(a.allocationId);
+        if (existing) {
+          existing.hoursInWeek = Math.round((existing.hoursInWeek + a.hoursInWeek) * 10) / 10;
+        } else {
+          mergedAllocs.set(a.allocationId, { ...a });
+        }
+      }
+    }
+
+    cells.push({
+      saturation: totalCapacity > 0 ? Math.round((totalAllocated / totalCapacity) * 100) : 0,
+      capacity: Math.round(totalCapacity * 10) / 10,
+      allocated: Math.round(totalAllocated * 10) / 10,
+      absenceHours: Math.round(totalAbsence * 10) / 10,
+      allocations: [...mergedAllocs.values()],
+    });
+  }
+
+  return { columns, cells };
+}
+
 export default function ResourcePlanPage() {
   const [data, setData] = useState<PivotData | null>(null);
   const [roleFilter, setRoleFilter] = useState("");
   const [poolFilter, setPoolFilter] = useState("");
+  const [zoom, setZoom] = useState<Zoom>("settimane");
+  const [allocTarget, setAllocTarget] = useState<{ id: string; name: string } | null>(null);
   const [popover, setPopover] = useState<{
     anchorEl: HTMLElement;
-    cell: WeekCell;
+    cell: DisplayCell;
     resourceName: string;
-    weekLabel: string;
+    periodLabel: string;
   } | null>(null);
 
   useEffect(() => {
@@ -86,6 +166,41 @@ export default function ResourcePlanPage() {
       .then(setData)
       .catch(() => {});
   }, []);
+
+  const monthColumns = useMemo(() => {
+    if (!data) return null;
+    const { columns } = aggregateToMonths(data.weeks, data.rows[0]?.weeks || []);
+    return columns;
+  }, [data]);
+
+  const displayColumns: DisplayColumn[] = useMemo(() => {
+    if (!data) return [];
+    if (zoom === "settimane") {
+      return data.weeks.map((w) => ({ label: w.label, key: w.start }));
+    }
+    return monthColumns || [];
+  }, [data, zoom, monthColumns]);
+
+  const filteredRows = data?.rows.filter((r) => {
+    if (roleFilter && r.role !== roleFilter) return false;
+    if (poolFilter && r.pool !== poolFilter) return false;
+    return true;
+  }) || [];
+
+  const displayCellsMap = useMemo(() => {
+    if (!data) return new Map<string, DisplayCell[]>();
+    const map = new Map<string, DisplayCell[]>();
+    for (const row of filteredRows) {
+      if (zoom === "settimane") {
+        map.set(row.resourceId, row.weeks);
+      } else {
+        const { cells } = aggregateToMonths(data.weeks, row.weeks);
+        map.set(row.resourceId, cells);
+      }
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, zoom, filteredRows.length, roleFilter, poolFilter]);
 
   if (!data) {
     return (
@@ -98,20 +213,27 @@ export default function ResourcePlanPage() {
     );
   }
 
-  const filteredRows = data.rows.filter((r) => {
-    if (roleFilter && r.role !== roleFilter) return false;
-    if (poolFilter && r.pool !== poolFilter) return false;
-    return true;
-  });
-
   const roles = [...new Set(data.rows.map((r) => r.role))];
   const pools = [...new Set(data.rows.map((r) => r.pool))];
 
+  const colWidth = zoom === "settimane" ? 60 : 80;
+
   return (
     <Box>
-      <Typography variant="h4" sx={{ fontWeight: 700, mb: 3 }}>
-        Resource Plan
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          Resource Plan
+        </Typography>
+        <ToggleButtonGroup
+          value={zoom}
+          exclusive
+          onChange={(_, v) => v && setZoom(v)}
+          size="small"
+        >
+          <ToggleButton value="settimane">Settimane</ToggleButton>
+          <ToggleButton value="mesi">Mesi</ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
 
       {/* Filters */}
       <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
@@ -169,7 +291,7 @@ export default function ResourcePlanPage() {
             <Box sx={{ minWidth: 900 }}>
               {/* Header */}
               <Box sx={{ display: "flex", borderBottom: 1, borderColor: "divider", pb: 0.5, mb: 0.5 }}>
-                <Box sx={{ width: 180, flexShrink: 0, px: 1 }}>
+                <Box sx={{ width: 220, flexShrink: 0, px: 1 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600 }}>
                     Risorsa
                   </Typography>
@@ -179,10 +301,10 @@ export default function ResourcePlanPage() {
                     Ruolo
                   </Typography>
                 </Box>
-                {data.weeks.map((w) => (
-                  <Box key={w.label} sx={{ width: 60, textAlign: "center", flexShrink: 0 }}>
+                {displayColumns.map((col) => (
+                  <Box key={col.key} sx={{ width: colWidth, textAlign: "center", flexShrink: 0 }}>
                     <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                      {w.label}
+                      {col.label}
                     </Typography>
                   </Box>
                 ))}
@@ -196,106 +318,134 @@ export default function ResourcePlanPage() {
                   </Typography>
                 </Box>
               ) : (
-                filteredRows.map((row) => (
-                  <Box
-                    key={row.resourceId}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      py: 0.25,
-                      "&:hover": { bgcolor: "action.hover" },
-                    }}
-                  >
-                    <Box sx={{ width: 180, flexShrink: 0, px: 1 }}>
-                      <Typography variant="body2" noWrap sx={{ fontSize: 13 }}>
-                        {row.resourceName}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ width: 80, flexShrink: 0, textAlign: "center" }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {RESOURCE_ROLE_LABELS[row.role]?.slice(0, 5) || row.role}
-                      </Typography>
-                    </Box>
-                    {row.weeks.map((cell, i) => (
-                      <Tooltip
-                        key={i}
-                        title={
-                          <Box>
-                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                              {row.resourceName} — {data.weeks[i].label}
-                            </Typography>
-                            <br />
-                            <Typography variant="caption">
-                              Saturazione: {cell.saturation}% ({getSatLabel(cell.saturation)})
-                            </Typography>
-                            <br />
-                            <Typography variant="caption">
-                              Capacita: {cell.capacity}h | Allocato: {cell.allocated}h
-                            </Typography>
-                            {cell.absenceHours > 0 && (
-                              <>
-                                <br />
-                                <Typography variant="caption">
-                                  Assenze: {cell.absenceHours}h
-                                </Typography>
-                              </>
-                            )}
-                            {cell.allocations.length > 0 && (
-                              <>
-                                <br />
-                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                                  Click per dettaglio
-                                </Typography>
-                              </>
-                            )}
-                          </Box>
-                        }
-                        arrow
+                filteredRows.map((row) => {
+                  const cells = displayCellsMap.get(row.resourceId) || [];
+                  return (
+                    <Box
+                      key={row.resourceId}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        py: 0.25,
+                        "&:hover": { bgcolor: "action.hover" },
+                      }}
+                    >
+                      <Box
+                        onClick={() => setAllocTarget({ id: row.resourceId, name: row.resourceName })}
+                        sx={{
+                          width: 220,
+                          flexShrink: 0,
+                          px: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          cursor: "pointer",
+                          borderRadius: 1,
+                          "&:hover": { bgcolor: "action.selected" },
+                        }}
                       >
-                        <Box
-                          onClick={(e) => {
-                            if (cell.allocations.length > 0) {
-                              setPopover({
-                                anchorEl: e.currentTarget,
-                                cell,
-                                resourceName: row.resourceName,
-                                weekLabel: data.weeks[i].label,
-                              });
-                            }
-                          }}
+                        <Avatar
                           sx={{
-                            width: 60,
-                            height: 28,
+                            width: 26,
+                            height: 26,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            bgcolor: "primary.main",
                             flexShrink: 0,
-                            mx: 0.25,
-                            borderRadius: 0.5,
-                            bgcolor: getSatColor(cell.saturation),
-                            opacity:
-                              cell.saturation === 0
-                                ? 0.1
-                                : 0.25 + (Math.min(cell.saturation, 120) / 120) * 0.75,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: cell.allocations.length > 0 ? "pointer" : "default",
-                            transition: "transform 0.1s",
-                            "&:hover": {
-                              transform:
-                                cell.allocations.length > 0 ? "scale(1.1)" : "none",
-                            },
                           }}
                         >
-                          <Typography
-                            variant="caption"
-                            sx={{ fontSize: 10, color: "white", fontWeight: 600 }}
+                          {getInitials(row.resourceName)}
+                        </Avatar>
+                        <Typography variant="body2" noWrap sx={{ fontSize: 13, color: "primary.main" }}>
+                          {row.resourceName}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ width: 80, flexShrink: 0, textAlign: "center" }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {RESOURCE_ROLE_LABELS[row.role]?.slice(0, 5) || row.role}
+                        </Typography>
+                      </Box>
+                      {cells.map((cell, i) => (
+                        <Tooltip
+                          key={i}
+                          title={
+                            <Box>
+                              <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                {row.resourceName} — {displayColumns[i]?.label}
+                              </Typography>
+                              <br />
+                              <Typography variant="caption">
+                                Saturazione: {cell.saturation}% ({getSatLabel(cell.saturation)})
+                              </Typography>
+                              <br />
+                              <Typography variant="caption">
+                                Capacita: {cell.capacity}h | Allocato: {cell.allocated}h
+                              </Typography>
+                              {cell.absenceHours > 0 && (
+                                <>
+                                  <br />
+                                  <Typography variant="caption">
+                                    Assenze: {cell.absenceHours}h
+                                  </Typography>
+                                </>
+                              )}
+                              {cell.allocations.length > 0 && (
+                                <>
+                                  <br />
+                                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                    Click per dettaglio
+                                  </Typography>
+                                </>
+                              )}
+                            </Box>
+                          }
+                          arrow
+                        >
+                          <Box
+                            onClick={(e) => {
+                              if (cell.allocations.length > 0) {
+                                setPopover({
+                                  anchorEl: e.currentTarget,
+                                  cell,
+                                  resourceName: row.resourceName,
+                                  periodLabel: displayColumns[i]?.label || "",
+                                });
+                              }
+                            }}
+                            sx={{
+                              width: colWidth,
+                              height: 28,
+                              flexShrink: 0,
+                              mx: 0.25,
+                              borderRadius: 0.5,
+                              bgcolor: getSatColor(cell.saturation),
+                              opacity:
+                                cell.saturation === 0
+                                  ? 0.1
+                                  : 0.25 + (Math.min(cell.saturation, 120) / 120) * 0.75,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: cell.allocations.length > 0 ? "pointer" : "default",
+                              transition: "transform 0.1s",
+                              "&:hover": {
+                                transform:
+                                  cell.allocations.length > 0 ? "scale(1.1)" : "none",
+                              },
+                            }}
                           >
-                            {cell.saturation}
-                          </Typography>
-                        </Box>
-                      </Tooltip>
-                    ))}
-                  </Box>
-                ))
+                            <Typography
+                              variant="caption"
+                              sx={{ fontSize: 10, color: "white", fontWeight: 600 }}
+                            >
+                              {cell.saturation}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      ))}
+                    </Box>
+                  );
+                })
               )}
             </Box>
           </Box>
@@ -313,7 +463,7 @@ export default function ResourcePlanPage() {
         {popover && (
           <Box sx={{ p: 2, maxWidth: 400 }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              {popover.resourceName} — Settimana {popover.weekLabel}
+              {popover.resourceName} — {zoom === "settimane" ? "Settimana" : ""} {popover.periodLabel}
             </Typography>
             <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
               <Chip
@@ -364,6 +514,15 @@ export default function ResourcePlanPage() {
           </Box>
         )}
       </Popover>
+
+      {allocTarget && (
+        <ResourceAllocationsDialog
+          open
+          onClose={() => setAllocTarget(null)}
+          resourceId={allocTarget.id}
+          resourceName={allocTarget.name}
+        />
+      )}
     </Box>
   );
 }
