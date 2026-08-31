@@ -45,8 +45,19 @@ export async function POST(request: NextRequest) {
   }
 
   const rowErrors: { row: number; field: string; message: string }[] = [];
-  let importedCount = 0;
-  let updatedCount = 0;
+
+  // Phase 1: validate all rows
+  interface ValidRow {
+    rowNum: number;
+    lastName: string;
+    firstName: string;
+    employeeId: string | null;
+    type: string;
+    belonging: string;
+    isPTF: boolean;
+    notes: string | null;
+  }
+  const validRows: ValidRow[] = [];
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
@@ -71,48 +82,85 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const isPTF = row.is_ptf?.trim().toLowerCase() === "true" || row.is_ptf?.trim() === "1";
-    const employeeId = row.id_dipendente?.trim() || null;
+    validRows.push({
+      rowNum,
+      lastName,
+      firstName,
+      employeeId: row.id_dipendente?.trim() || null,
+      type,
+      belonging,
+      isPTF: row.is_ptf?.trim().toLowerCase() === "true" || row.is_ptf?.trim() === "1",
+      notes: row.note?.trim() || null,
+    });
+  }
 
-    // Match by id_dipendente first, then by cognome+nome
-    let existing = null;
-    if (employeeId) {
-      existing = await prisma.resource.findFirst({
-        where: { employeeId },
-      });
-    }
-    if (!existing) {
-      existing = await prisma.resource.findFirst({
-        where: { lastName, firstName },
-      });
-    }
+  // Phase 2: batch-load all existing resources
+  const allResources = await prisma.resource.findMany({
+    select: { id: true, firstName: true, lastName: true, employeeId: true, notes: true },
+  });
+  const byEmployeeId = new Map<string, typeof allResources[0]>();
+  const byName = new Map<string, typeof allResources[0]>();
+  for (const r of allResources) {
+    if (r.employeeId) byEmployeeId.set(r.employeeId, r);
+    byName.set(`${r.lastName}|${r.firstName}`, r);
+  }
+
+  // Phase 3: separate creates and updates
+  let importedCount = 0;
+  let updatedCount = 0;
+
+  const toCreate: Array<{
+    lastName: string;
+    firstName: string;
+    employeeId: string | null;
+    type: string;
+    belonging: string;
+    isPTF: boolean;
+    notes: string | null;
+  }> = [];
+  const updateOps: Array<ReturnType<typeof prisma.resource.update>> = [];
+
+  for (const row of validRows) {
+    const existing = (row.employeeId && byEmployeeId.get(row.employeeId))
+      || byName.get(`${row.lastName}|${row.firstName}`);
 
     if (existing) {
-      await prisma.resource.update({
-        where: { id: existing.id },
-        data: {
-          employeeId: employeeId || existing.employeeId,
-          type: type as never,
-          belonging: belonging as never,
-          isPTF: isPTF,
-          notes: row.note?.trim() || existing.notes,
-        },
-      });
-      updatedCount++;
+      updateOps.push(
+        prisma.resource.update({
+          where: { id: existing.id },
+          data: {
+            employeeId: row.employeeId || existing.employeeId,
+            type: row.type as never,
+            belonging: row.belonging as never,
+            isPTF: row.isPTF,
+            notes: row.notes || existing.notes,
+          },
+        })
+      );
     } else {
-      await prisma.resource.create({
-        data: {
-          lastName,
-          firstName,
-          employeeId,
-          type: type as never,
-          belonging: belonging as never,
-          isPTF: isPTF,
-          notes: row.note?.trim() || null,
-        },
+      toCreate.push({
+        lastName: row.lastName,
+        firstName: row.firstName,
+        employeeId: row.employeeId,
+        type: row.type as never,
+        belonging: row.belonging as never,
+        isPTF: row.isPTF,
+        notes: row.notes,
       });
-      importedCount++;
     }
+  }
+
+  if (toCreate.length > 0) {
+    const result = await prisma.resource.createMany({ data: toCreate as never[] });
+    importedCount = result.count;
+  }
+
+  if (updateOps.length > 0) {
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < updateOps.length; i += BATCH_SIZE) {
+      await prisma.$transaction(updateOps.slice(i, i + BATCH_SIZE));
+    }
+    updatedCount = updateOps.length;
   }
 
   const importLog = await prisma.importLog.create({
