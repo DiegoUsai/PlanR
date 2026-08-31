@@ -36,6 +36,9 @@ interface ResourceParam {
   weeklyHours: string;
   dailyCost: string;
   productivityCoeff: string;
+  weeklyHoursBuffer: string | null;
+  validFrom: string;
+  validTo: string | null;
 }
 
 interface Resource {
@@ -52,6 +55,8 @@ interface Resource {
   _count: { allocations: number };
 }
 
+const todayStr = () => new Date().toISOString().split("T")[0];
+
 const emptyForm = {
   firstName: "",
   lastName: "",
@@ -66,6 +71,8 @@ const emptyForm = {
   weeklyHours: "40",
   dailyCost: "0",
   productivityCoeff: "1",
+  weeklyHoursBuffer: "",
+  validFrom: todayStr(),
 };
 
 export default function RisorsePage() {
@@ -131,12 +138,14 @@ export default function RisorsePage() {
       weeklyHours: p?.weeklyHours || "40",
       dailyCost: p?.dailyCost || "0",
       productivityCoeff: p?.productivityCoeff || "1",
+      weeklyHoursBuffer: p?.weeklyHoursBuffer || "",
+      validFrom: p?.validFrom?.split("T")[0] || todayStr(),
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    const { weeklyHours, dailyCost, productivityCoeff, role, level, ...rest } = form;
+    const { weeklyHours, dailyCost, productivityCoeff, role, level, weeklyHoursBuffer, validFrom, ...rest } = form;
     const resourceData = {
       firstName: rest.firstName,
       lastName: rest.lastName,
@@ -154,7 +163,8 @@ export default function RisorsePage() {
       weeklyHours: Number(weeklyHours),
       dailyCost: Number(dailyCost),
       productivityCoeff: Number(productivityCoeff) || 1,
-      validFrom: new Date().toISOString().split("T")[0],
+      weeklyHoursBuffer: weeklyHoursBuffer ? Number(weeklyHoursBuffer) : null,
+      validFrom: validFrom || todayStr(),
     };
 
     try {
@@ -170,18 +180,25 @@ export default function RisorsePage() {
           return;
         }
         const p = editing.parameters[0];
-        if (
+        const paramChanged =
           role !== p?.role ||
           level !== p?.level ||
           String(weeklyHours) !== String(p?.weeklyHours) ||
           String(dailyCost) !== String(p?.dailyCost) ||
-          String(productivityCoeff) !== String(p?.productivityCoeff)
-        ) {
-          await fetch(`/api/resources/${editing.id}/parameters`, {
+          String(productivityCoeff) !== String(p?.productivityCoeff) ||
+          String(weeklyHoursBuffer || "") !== String(p?.weeklyHoursBuffer || "") ||
+          validFrom !== (p?.validFrom?.split("T")[0] || "");
+        if (paramChanged) {
+          const pRes = await fetch(`/api/resources/${editing.id}/parameters`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ resourceId: editing.id, ...paramData }),
           });
+          if (!pRes.ok) {
+            const pErr = await pRes.json().catch(() => ({}));
+            alert(pErr.error || "Errore nel salvataggio parametri");
+            return;
+          }
         }
       } else {
         const res = await fetch("/api/resources", {
@@ -270,6 +287,15 @@ export default function RisorsePage() {
       width: 85,
       valueGetter: (_value: unknown, row: Resource) =>
         row.parameters[0]?.weeklyHours || "-",
+    },
+    {
+      field: "validFrom",
+      headerName: "Dal",
+      width: 100,
+      valueGetter: (_value: unknown, row: Resource) =>
+        row.parameters[0]?.validFrom || "",
+      valueFormatter: (value: string) =>
+        value ? new Date(value).toLocaleDateString("it-IT") : "-",
     },
     {
       field: "isPTF",
@@ -533,6 +559,23 @@ export default function RisorsePage() {
               slotProps={{
                 htmlInput: { step: 0.1, min: 0.1, max: 2 },
               }}
+            />
+            <TextField
+              label="Buffer ore sett."
+              type="number"
+              value={form.weeklyHoursBuffer}
+              onChange={(e) => updateForm("weeklyHoursBuffer", e.target.value)}
+              size="small"
+              helperText="Override buffer BU (vuoto = default)"
+            />
+            <TextField
+              label="Validita dal"
+              type="date"
+              value={form.validFrom}
+              onChange={(e) => updateForm("validFrom", e.target.value)}
+              size="small"
+              required
+              slotProps={{ inputLabel: { shrink: true } }}
             />
 
             <TextField

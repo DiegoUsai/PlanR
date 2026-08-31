@@ -31,24 +31,48 @@ export async function POST(request: NextRequest, { params }: Params) {
   const { validFrom, validTo, ...data } = parsed.data;
   const newValidFrom = new Date(validFrom);
 
-  await prisma.resourceParameter.updateMany({
-    where: {
-      resourceId: id,
-      validTo: null,
-      validFrom: { lt: newValidFrom },
-    },
-    data: {
-      validTo: new Date(newValidFrom.getTime() - 86400000),
-    },
-  });
+  try {
+    const existing = await prisma.resourceParameter.findFirst({
+      where: {
+        resourceId: id,
+        validTo: null,
+        validFrom: newValidFrom,
+      },
+    });
 
-  const parameter = await prisma.resourceParameter.create({
-    data: {
-      ...data,
-      validFrom: newValidFrom,
-      validTo: validTo ? new Date(validTo) : null,
-    },
-  });
+    if (existing) {
+      const parameter = await prisma.resourceParameter.update({
+        where: { id: existing.id },
+        data: {
+          ...data,
+          resourceId: id,
+        },
+      });
+      return NextResponse.json(parameter);
+    }
 
-  return NextResponse.json(parameter, { status: 201 });
+    await prisma.resourceParameter.updateMany({
+      where: {
+        resourceId: id,
+        validTo: null,
+        validFrom: { lt: newValidFrom },
+      },
+      data: {
+        validTo: new Date(newValidFrom.getTime() - 86400000),
+      },
+    });
+
+    const parameter = await prisma.resourceParameter.create({
+      data: {
+        ...data,
+        validFrom: newValidFrom,
+        validTo: validTo ? new Date(validTo) : null,
+      },
+    });
+
+    return NextResponse.json(parameter, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Errore nel salvataggio parametri";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

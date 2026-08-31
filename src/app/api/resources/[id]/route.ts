@@ -40,15 +40,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const { joinDate, ...data } = parsed.data;
 
-  const resource = await prisma.resource.update({
-    where: { id },
-    data: {
-      ...data,
-      joinDate: joinDate ? new Date(joinDate) : undefined,
-    },
-  });
+  try {
+    const resource = await prisma.resource.update({
+      where: { id },
+      data: {
+        ...data,
+        joinDate: joinDate ? new Date(joinDate) : undefined,
+      },
+    });
 
-  return NextResponse.json(resource);
+    return NextResponse.json(resource);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Errore nel salvataggio";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
