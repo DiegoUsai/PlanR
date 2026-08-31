@@ -16,6 +16,9 @@ import PeopleOutlined from "@mui/icons-material/PeopleOutlined";
 import AppsOutlined from "@mui/icons-material/AppsOutlined";
 import DescriptionOutlined from "@mui/icons-material/DescriptionOutlined";
 import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
+import FileUploadOutlined from "@mui/icons-material/FileUploadOutlined";
+import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
+import GridViewOutlined from "@mui/icons-material/GridViewOutlined";
 
 const DRAWER_WIDTH = 220;
 
@@ -25,6 +28,9 @@ const NAV_ITEMS = [
   { label: "Applicativi", path: "/applicativi", icon: <AppsOutlined /> },
   { label: "Contratti", path: "/contratti", icon: <DescriptionOutlined /> },
   { label: "Iniziative", path: "/iniziative", icon: <AssignmentOutlined /> },
+  { label: "Resource Plan", path: "/resource-plan", icon: <GridViewOutlined /> },
+  { label: "Import", path: "/import", icon: <FileUploadOutlined /> },
+  { label: "Alert", path: "/alert", icon: <NotificationsOutlined /> },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

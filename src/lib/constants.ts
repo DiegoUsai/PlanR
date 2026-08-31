@@ -74,3 +74,29 @@ export const PRIORITY_COLORS: Record<string, "error" | "warning" | "info"> = {
   MEDIA: "warning",
   BASSA: "info",
 };
+
+export const ALERT_TYPE_LABELS: Record<string, string> = {
+  SOVRA_ALLOCAZIONE: "Sovra-allocazione",
+  SOTTO_UTILIZZO: "Sotto-utilizzo",
+  SCADENZA_SOFT_LOCK: "Scadenza soft lock",
+  READY_PENDING_RESOURCES: "Pending Resources",
+  INIZIATIVA_SENZA_ALLOCAZIONI: "Senza allocazioni",
+  PROSSIMITA_SCADENZA_CONTRATTO: "Scadenza contratto",
+  SLITTAMENTO_COEFFICIENTE: "Slittamento coefficiente",
+  COSTO_SUPERIORE_VALORE: "Costo > valore",
+  PROFILO_SATURO: "Profilo saturo",
+  PIPELINE_VALUE_ELEVATA: "Pipeline value elevata",
+  ACCUMULO_PENDING_RESOURCES: "Accumulo pending",
+};
+
+export const ALERT_SEVERITY_LABELS: Record<string, string> = {
+  OPERATIVO: "Operativo",
+  STRATEGICO: "Strategico",
+};
+
+export const ALERT_STATUS_LABELS: Record<string, string> = {
+  ATTIVO: "Attivo",
+  PRESO_IN_CARICO: "Preso in carico",
+  SILENZIATO: "Silenziato",
+  RISOLTO: "Risolto",
+};
