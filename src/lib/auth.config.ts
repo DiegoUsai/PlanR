@@ -7,6 +7,7 @@ const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || "")
   .filter(Boolean);
 
 export const authConfig = {
+  trustHost: true,
   providers: [Google],
   session: { strategy: "jwt" },
   pages: {
