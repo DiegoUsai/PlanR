@@ -31,17 +31,8 @@ export async function POST(request: NextRequest) {
 
   const { date, ...data } = parsed.data;
 
-  const absence = await prisma.absence.upsert({
-    where: {
-      resourceId_date: {
-        resourceId: data.resourceId,
-        date: new Date(date),
-      },
-    },
-    update: {
-      ...data,
-    },
-    create: {
+  const absence = await prisma.absence.create({
+    data: {
       ...data,
       date: new Date(date),
     },

@@ -338,7 +338,7 @@ model Absence {
 
   resource Resource @relation(fields: [resourceId], references: [id])
 
-  @@unique([resourceId, date])
+  @@index([resourceId, date])
   @@map("absences")
 }
 
