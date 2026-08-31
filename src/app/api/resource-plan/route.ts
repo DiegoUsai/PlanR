@@ -43,12 +43,11 @@ export async function GET() {
         },
         absences: {
           where: {
-            startDate: { gte: today },
-            endDate: { lte: horizonEnd },
+            date: { gte: today, lte: horizonEnd },
           },
         },
       },
-      orderBy: [{ role: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
 
     const weeks: { label: string; start: string; end: string }[] = [];
@@ -115,7 +114,7 @@ export async function GET() {
 
         let absHours = 0;
         for (const abs of resource.absences) {
-          const aDate = new Date(abs.startDate);
+          const aDate = new Date(abs.date);
           if (aDate >= wStart && aDate <= wEnd) {
             absHours += decimalToNumber(abs.hours);
           }
@@ -166,8 +165,8 @@ export async function GET() {
       rows.push({
         resourceId: resource.id,
         resourceName: `${resource.lastName} ${resource.firstName}`,
-        role: resource.role,
-        level: resource.level,
+        role: param.role,
+        level: param.level,
         type: resource.type,
         pool: resource.pool,
         weeks: weekCells,

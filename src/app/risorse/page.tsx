@@ -32,6 +32,8 @@ import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import ResourceAllocationsDialog from "@/components/resources/ResourceAllocationsDialog";
 
 interface ResourceParam {
+  role: string;
+  level: string;
   weeklyHours: string;
   dailyCost: string;
   productivityCoeff: string;
@@ -42,8 +44,6 @@ interface Resource {
   firstName: string;
   lastName: string;
   employeeId: string | null;
-  role: string;
-  level: string;
   type: string;
   belonging: string;
   pool: string;
@@ -93,7 +93,7 @@ export default function RisorsePage() {
           r.employeeId?.toLowerCase().includes(q)
       );
     }
-    if (filterRole) result = result.filter((r) => r.role === filterRole);
+    if (filterRole) result = result.filter((r) => r.parameters[0]?.role === filterRole);
     if (filterPool) result = result.filter((r) => r.pool === filterPool);
     return result;
   }, [resources, search, filterRole, filterPool]);
@@ -126,8 +126,8 @@ export default function RisorsePage() {
       firstName: resource.firstName,
       lastName: resource.lastName,
       employeeId: resource.employeeId || "",
-      role: resource.role,
-      level: resource.level,
+      role: p?.role || "FE",
+      level: p?.level || "MID",
       type: resource.type,
       belonging: resource.belonging,
       pool: resource.pool,
@@ -142,19 +142,26 @@ export default function RisorsePage() {
   };
 
   const handleSave = async () => {
-    const { weeklyHours, dailyCost, productivityCoeff, ...rest } = form;
+    const { weeklyHours, dailyCost, productivityCoeff, role, level, ...rest } = form;
     const resourceData = {
       firstName: rest.firstName,
       lastName: rest.lastName,
       employeeId: rest.employeeId || undefined,
-      role: rest.role,
-      level: rest.level,
       type: rest.type,
       belonging: rest.belonging,
       pool: rest.pool,
       isPTF: rest.isPTF,
       joinDate: rest.joinDate || undefined,
       notes: rest.notes || undefined,
+    };
+
+    const paramData = {
+      role,
+      level,
+      weeklyHours: Number(weeklyHours),
+      dailyCost: Number(dailyCost),
+      productivityCoeff: Number(productivityCoeff) || 1,
+      validFrom: new Date().toISOString().split("T")[0],
     };
 
     try {
@@ -171,6 +178,8 @@ export default function RisorsePage() {
         }
         const p = editing.parameters[0];
         if (
+          role !== p?.role ||
+          level !== p?.level ||
           String(weeklyHours) !== String(p?.weeklyHours) ||
           String(dailyCost) !== String(p?.dailyCost) ||
           String(productivityCoeff) !== String(p?.productivityCoeff)
@@ -178,13 +187,7 @@ export default function RisorsePage() {
           await fetch(`/api/resources/${editing.id}/parameters`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              resourceId: editing.id,
-              weeklyHours: Number(weeklyHours),
-              dailyCost: Number(dailyCost),
-              productivityCoeff: Number(productivityCoeff) || 1,
-              validFrom: new Date().toISOString().split("T")[0],
-            }),
+            body: JSON.stringify({ resourceId: editing.id, ...paramData }),
           });
         }
       } else {
@@ -199,19 +202,11 @@ export default function RisorsePage() {
           return;
         }
         const created = await res.json();
-        if (weeklyHours && dailyCost) {
-          await fetch(`/api/resources/${created.id}/parameters`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              resourceId: created.id,
-              weeklyHours: Number(weeklyHours),
-              dailyCost: Number(dailyCost),
-              productivityCoeff: Number(productivityCoeff) || 1,
-              validFrom: new Date().toISOString().split("T")[0],
-            }),
-          });
-        }
+        await fetch(`/api/resources/${created.id}/parameters`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resourceId: created.id, ...paramData }),
+        });
       }
       setDialogOpen(false);
       fetchData();
@@ -247,6 +242,7 @@ export default function RisorsePage() {
       field: "role",
       headerName: "Ruolo",
       width: 130,
+      valueGetter: (_v: unknown, row: Resource) => row.parameters[0]?.role || "",
       renderCell: ({ value }) => (
         <Chip
           label={RESOURCE_ROLE_LABELS[value] || value}
@@ -259,6 +255,7 @@ export default function RisorsePage() {
       field: "level",
       headerName: "Livello",
       width: 90,
+      valueGetter: (_v: unknown, row: Resource) => row.parameters[0]?.level || "",
       valueFormatter: (value: string) => RESOURCE_LEVEL_LABELS[value] || value,
     },
     {

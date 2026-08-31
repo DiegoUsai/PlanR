@@ -12,8 +12,6 @@ export const createResourceSchema = z.object({
   firstName: z.string().min(1, "Nome obbligatorio"),
   lastName: z.string().min(1, "Cognome obbligatorio"),
   employeeId: z.string().optional(),
-  role: resourceRoleEnum,
-  level: resourceLevelEnum,
   type: resourceTypeEnum,
   belonging: resourceBelongingEnum,
   pool: resourcePoolEnum,
@@ -27,6 +25,8 @@ export const updateResourceSchema = createResourceSchema.partial();
 
 export const createResourceParameterSchema = z.object({
   resourceId: z.string().uuid(),
+  role: resourceRoleEnum,
+  level: resourceLevelEnum,
   weeklyHours: z.number().positive(),
   dailyCost: z.number().nonnegative(),
   productivityCoeff: z.number().positive().default(1.0),

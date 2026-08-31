@@ -191,8 +191,6 @@ Rappresenta una persona della BU.
 | **id_dipendente** | Stringa | Identificativo del dipendente nel sistema HR aziendale. Chiave di raccordo con l'anagrafica HR |
 | **nome** | Stringa | Nome della persona |
 | **cognome** | Stringa | Cognome della persona |
-| **ruolo** | Enum | FE (Frontend), BE (Backend), Analista, Tech Lead, Architetto, PM, BA Senior, Altro |
-| **livello** | Enum | Junior, Mid, Senior |
 | **tipologia** | Enum | Interna, Esterna |
 | **appartenenza** | Enum | BU Documentale, Engineering Excellence |
 | **pool** | Enum | Manutenzione, Evolutiva/Adeguativa |
@@ -207,16 +205,18 @@ Rappresenta una persona della BU.
 
 > **Risorse di Engineering Excellence:** le risorse che appartengono a **Engineering Excellence** (sezione 9 del Draft) vengono allocate sulle iniziative della BU Documentale quando il PTF rileva la necessità di un coinvolgimento architetturale o trasversale (flag "Coinvolgimento EE" nell'epica). La loro capacità allocabile è gestita dall'applicazione con gli stessi vincoli delle risorse della BU, ma il D&R Manager deve tenere conto che queste risorse hanno anche impegni fuori dal perimetro della BU Documentale, non visibili nell'applicazione. La percentuale di allocazione massima effettiva va concordata con il responsabile di Engineering Excellence.
 
-Gli attributi **ore settimanali** e **costo giornata** sono temporalizzati: possono variare nel tempo senza incidere sul passato. Vengono gestiti tramite l'entità **Parametro risorsa**.
+Gli attributi **ruolo**, **livello**, **ore settimanali**, **costo giornata** e **coefficiente di produttività** sono temporalizzati: possono variare nel tempo senza incidere sul passato. Vengono gestiti tramite l'entità **Parametro risorsa**.
 
 #### Parametro risorsa
 
-Storico temporalizzato degli attributi variabili di una risorsa. Una variazione di ore settimanali o costo giornata crea un nuovo record con la data di inizio validità; il record precedente viene chiuso con la data di fine. Le allocazioni passate e presenti continuano a fare riferimento ai valori vigenti nel loro periodo, non ai valori aggiornati.
+Storico temporalizzato degli attributi variabili di una risorsa. Una variazione di ruolo, livello, ore settimanali, costo giornata o coefficiente di produttività crea un nuovo record con la data di inizio validità; il record precedente viene chiuso con la data di fine. Le allocazioni passate e presenti continuano a fare riferimento ai valori vigenti nel loro periodo, non ai valori aggiornati.
 
 | Campo | Tipo | Note |
 | :---- | :---- | :---- |
 | **id** | UUID | Identificativo univoco |
 | **risorsa** | FK → Risorsa | |
+| **ruolo** | Enum | FE (Frontend), BE (Backend), Analista, Tech Lead, Architetto, PM, BA Senior, Altro. Ruolo della risorsa nel periodo di validità |
+| **livello** | Enum | Junior, Mid, Senior. Livello di seniority nel periodo di validità |
 | **ore_settimanali** | Decimale | Ore teoriche settimanali della risorsa nel periodo di validità |
 | **costo_giornata** | Decimale | Costo giornaliero della risorsa in euro nel periodo di validità |
 | **coefficiente_produttivita** | Decimale | Fattore moltiplicativo rispetto al baseline mid-level (default: 1.0). Un junior potrebbe avere 1.3 (impiega il 30% in più di giorni), un senior 0.85 (impiega il 15% in meno). Impatta la pianificazione temporale, non il costo giornata |
@@ -367,15 +367,16 @@ Questo valore è confrontabile con l'importo del contratto di riferimento e con 
 
 #### Assenza
 
-Record di ferie o assenza importato da **Factorial**.
+Record di ferie o assenza importato da **Factorial**. Ogni record rappresenta un singolo giorno di assenza (o mezza giornata), coerentemente con il formato del CSV di import (sezione 5).
 
 | Campo | Tipo | Note |
 | :---- | :---- | :---- |
 | **id** | UUID | Identificativo univoco |
-| **risorsa** | FK → Risorsa | |
-| **data_inizio** | Data | |
-| **data_fine** | Data | |
+| **risorsa** | FK → Risorsa | Match per nominativo costruito come `cognome + " " + nome` dal campo `nominativo` del CSV |
+| **giorno** | Data | Data dell'assenza (singolo giorno) |
+| **ore_assenza** | Decimale | Ore di assenza nella giornata (8 = giornata intera, 4 = mezza giornata) |
 | **tipo** | Enum | Ferie, Malattia, Permesso, Altro |
+| **fonte** | Enum | Factorial, Jira | Indica se il record proviene dall'import Factorial o dal filtro assenze dell'import consuntivo Jira (sezione 6.3) |
 | **note** | Testo | |
 
 #### Configurazione BU
@@ -481,8 +482,8 @@ Dove **nominativo** è cognome e nome, **giorno** è la data in formato `YYYY-MM
 
 L'applicazione offre una funzione di **import da file** che:
 
-- legge il CSV e mappa i record alle risorse presenti nel sistema tramite **match per nominativo**
-- segnala eventuali **risorse non trovate** (nominativo non corrispondente) per correzione manuale
+- legge il CSV e mappa i record alle risorse presenti nel sistema tramite **match per nominativo** (costruito come `cognome + " " + nome`)
+- segnala eventuali **risorse non trovate** (nominativo non corrispondente a nessuna risorsa in anagrafica) per correzione manuale
 - aggiorna o crea i record di assenza senza duplicare quelli già importati in precedenza (deduplicazione per risorsa + data: se già presente, aggiorna il valore ore_assenza)
 - mostra un **riepilogo dell'import** prima della conferma: record nuovi, record aggiornati, record ignorati, errori
 
@@ -504,7 +505,7 @@ Il **flusso di ritorno** chiude il ciclo di pianificazione: le ore effettivament
 | :---- | :---- | :---- |
 | **id** | UUID | Identificativo univoco |
 | **iniziativa** | FK → Iniziativa | Iniziativa su cui sono state consuntivate le ore (derivata dal mapping issue → epica) |
-| **risorsa** | FK → Risorsa | Risorsa che ha lavorato sull'iniziativa (match per nominativo dal campo `User` del CSV) |
+| **risorsa** | FK → Risorsa | Risorsa che ha lavorato sull'iniziativa (match per nominativo costruito da `cognome + " " + nome`, dal campo `User` del CSV) |
 | **periodo** | Stringa | Periodo di riferimento del consuntivo, derivato dal range date del file (es. `2026-08` per agosto 2026) |
 | **ore_consuntivate** | Decimale | Ore effettivamente lavorate dalla risorsa sull'iniziativa nel periodo, aggregate dalla somma dei singoli worklog |
 | **data_caricamento** | Data | Data in cui il record è stato importato nel sistema |
@@ -523,7 +524,7 @@ Alberto Galli;AIC-2234;8;AIC-2234: Alberto Galli - Assenza;2026-08-12
 
 Dove:
 
-- **User** — nome e cognome della risorsa (match per nominativo con il campo `nominativo` dell'anagrafica risorse)
+- **User** — nome e cognome della risorsa (match per nominativo costruito come `cognome + " " + nome` dall'anagrafica risorse)
 - **Issue key** — chiave della issue Jira (task, story o sub-task, **non necessariamente l'epica**)
 - **Time spent (hours)** — ore consuntivate in quel singolo worklog
 - **Issues** — campo descrittivo (chiave + titolo), usato solo per log e debugging
@@ -537,7 +538,7 @@ L'applicazione, in fase di import:
 2. **Filtro assenze:** i record il cui campo `Issues` contiene la parola "**Assenza**" vengono separati e trattati come ore di assenza, non come consuntivo lavorativo. Possono opzionalmente alimentare l'entità Assenza come integrazione/verifica dell'import Factorial
 3. **Aggregazione:** i singoli worklog vengono aggregati per **risorsa + iniziativa + periodo** per produrre i record dell'entità Consuntivo
 4. **Deduplicazione:** se un consuntivo per la stessa combinazione risorsa + iniziativa + periodo è già presente, viene aggiornato (somma cumulativa o sostituzione, a scelta del D&R Manager)
-5. **Match risorse:** il match è per nominativo (`User`). I nominativi non trovati in anagrafica vengono segnalati per correzione
+5. **Match risorse:** il match è per nominativo (`User` confrontato con `cognome + " " + nome` dall'anagrafica). I nominativi non trovati vengono segnalati per correzione
 6. **Riepilogo pre-conferma:** prima del salvataggio, l'applicazione mostra il riepilogo: ore totali per risorsa, ore totali per iniziativa, record non mappati, assenze filtrate
 
 > **Aggregazione temporale:** grazie al campo `Timestamp`, l'applicazione può aggregare i worklog per **settimana** o per **mese** a scelta del D&R Manager, producendo record di consuntivo con granularità diversa. L'aggregazione settimanale consente il confronto diretto con la pianificazione nella vista pivot; quella mensile è più adatta alle dashboard di accuratezza.
@@ -1046,16 +1047,16 @@ Il tema MUI dell'applicazione utilizza i colori della **brand identity** di SiMa
 
 #### Import risorse (CSV)
 
-L'anagrafica delle risorse può essere importata tramite upload di un file **CSV** con i campi dell'entità Risorsa. Il D&R Manager carica il file dall'interfaccia; l'applicazione valida i dati, segnala eventuali errori riga per riga e importa le risorse valide. Le risorse già presenti (match su nominativo) vengono aggiornate, le nuove vengono create. Il formato atteso:
+L'anagrafica delle risorse può essere importata tramite upload di un file **CSV** con i campi dell'entità Risorsa. Il D&R Manager carica il file dall'interfaccia; l'applicazione valida i dati, segnala eventuali errori riga per riga e importa le risorse valide. Le risorse già presenti (match su `id_dipendente` oppure su nominativo costruito come `cognome + " " + nome`) vengono aggiornate, le nuove vengono create. Il formato atteso:
 
 ```
-nominativo;ruolo;livello;tipologia;appartenenza;pool;is_ptf;note
-Rossi Mario;BE;Mid;Interna;BU Documentale;Evolutiva;false;
-Bianchi Anna;FE;Senior;Interna;BU Documentale;Evolutiva;true;Referente modulo Firma
-Verdi Luca;Analista;Junior;Esterna;BU Documentale;Manutenzione;false;Consulente XYZ
+id_dipendente;cognome;nome;tipologia;appartenenza;pool;is_ptf;note
+HR001;Rossi;Mario;Interna;BU Documentale;Evolutiva;false;
+HR002;Bianchi;Anna;Interna;BU Documentale;Evolutiva;true;Referente modulo Firma
+HR003;Verdi;Luca;Esterna;BU Documentale;Manutenzione;false;Consulente XYZ
 ```
 
-> **Nota:** i parametri temporalizzati (ore settimanali, costo giornata, coefficiente di produttività, buffer individuale) non sono inclusi nell'import CSV — vengono gestiti manualmente nell'applicazione tramite l'entità Parametro risorsa, poiché richiedono date di validità e storicizzazione.
+> **Nota:** i parametri temporalizzati (ruolo, livello, ore settimanali, costo giornata, coefficiente di produttività, buffer individuale) non sono inclusi nell'import CSV — vengono gestiti manualmente nell'applicazione tramite l'entità Parametro risorsa, poiché richiedono date di validità e storicizzazione.
 
 #### Import assenze (CSV da Factorial)
 
@@ -1074,7 +1075,7 @@ Dove:
 - **giorno** — data dell'assenza in formato `YYYY-MM-DD`
 - **ore_assenza** — ore di assenza nella giornata (8 = giornata intera, 4 = mezza giornata, ecc.)
 
-L'applicazione effettua il **match per nominativo** con le risorse in anagrafica, segnala i nominativi non riconosciuti e applica la **deduplicazione**: se un'assenza per la stessa risorsa e lo stesso giorno è già presente, non viene duplicata ma aggiornata con il valore più recente.
+L'applicazione effettua il **match per nominativo** (costruito come `cognome + " " + nome`) con le risorse in anagrafica, segnala i nominativi non riconosciuti e applica la **deduplicazione**: se un'assenza per la stessa risorsa e lo stesso giorno è già presente, non viene duplicata ma aggiornata con il valore più recente.
 
 ---
 

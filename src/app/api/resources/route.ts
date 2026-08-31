@@ -10,8 +10,12 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (pool) where.pool = pool;
-  if (role) where.role = role;
   if (belonging) where.belonging = belonging;
+  if (role) {
+    where.parameters = {
+      some: { role, validTo: null },
+    };
+  }
 
   const resources = await prisma.resource.findMany({
     where,

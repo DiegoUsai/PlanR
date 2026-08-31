@@ -84,8 +84,6 @@ Persona della BU. Identificata da cognome + nome (campi separati: `lastName`, `f
 |---|---|
 | cognome + nome | Campi separati. Visualizzato come "Cognome Nome" (convenzione italiana) |
 | id_dipendente | Codice identificativo nel sistema HR (facoltativo) |
-| ruolo | FE, BE, Analista, Tech Lead, Architetto, PM, BA Senior, Altro |
-| livello | Junior, Mid, Senior |
 | tipologia | Interna o Esterna (consulenti/fornitori) — distinzione per analisi costi e mix |
 | appartenenza | BU Documentale o Engineering Excellence (sezione 9 Draft) |
 | pool | **Manutenzione** (allocate su manutenzione con percentuale configurabile) o **Evolutiva/Adeguativa** (allocate dinamicamente) |
@@ -104,6 +102,8 @@ Storico temporalizzato degli attributi variabili di una risorsa. Un cambio crea 
 
 | Campo | Significato |
 |---|---|
+| ruolo | FE, BE, Analista, Tech Lead, Architetto, PM, BA Senior, Altro. Temporalizzato — una promozione crea un nuovo record |
+| livello | Junior, Mid, Senior. Temporalizzato — un avanzamento crea un nuovo record |
 | ore_settimanali | Ore teoriche settimanali nel periodo di validita |
 | costo_giornata | Costo giornaliero in euro nel periodo |
 | coefficiente_produttivita | Fattore rispetto al baseline mid-level (default 1.0). Junior: 1.3, Senior: 0.85. Impatta la pianificazione temporale, non il costo |
@@ -146,13 +146,15 @@ Assegnazione di una Risorsa a un'Iniziativa per un periodo e una percentuale di 
 
 ### Assenza (Absence)
 
-Record di ferie/assenza importato da Factorial (CSV settimanale). Riduce la capacita allocabile nelle settimane interessate.
+Record di singolo giorno di assenza, importato da Factorial (CSV) o filtrato dall'import consuntivo Jira. Riduce la capacita allocabile nelle settimane interessate.
 
 | Campo | Note |
 |---|---|
+| giorno (date) | Singola data di assenza |
+| ore_assenza (hours) | Ore di assenza nella giornata (8 = intera, 4 = mezza) |
 | tipo | Ferie, Malattia, Permesso, Altro |
-| Match per nominativo con l'anagrafica risorse |
-| Deduplicazione per risorsa + data |
+| fonte (source) | Factorial o Jira — indica la provenienza del record |
+| Deduplicazione per risorsa + data (unique constraint) |
 
 ### Consuntivo (Consuntivo) — predisposizione
 

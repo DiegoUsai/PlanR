@@ -61,8 +61,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
       },
       absences: {
         where: {
-          startDate: { gte: today },
-          endDate: { lte: horizonEnd },
+          date: { gte: today, lte: horizonEnd },
         },
       },
     },
@@ -111,7 +110,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
 
       let absenceHours = 0;
       for (const abs of resource.absences) {
-        const absDate = new Date(abs.startDate);
+        const absDate = new Date(abs.date);
         if (absDate >= weekStart && absDate <= weekEnd) {
           absenceHours += decimalToNumber(abs.hours);
         }
@@ -330,9 +329,15 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
   // Profilo saturo: tutte risorse di un profilo > 85% per 4 settimane
   const roleGroups = new Map<string, typeof resources>();
   for (const r of resources) {
-    const group = roleGroups.get(r.role) ?? [];
+    const currentP = r.parameters.find((p) => {
+      const from = new Date(p.validFrom);
+      const to = p.validTo ? new Date(p.validTo) : null;
+      return from <= today && (!to || to >= today);
+    });
+    const role = currentP?.role ?? "ALTRO";
+    const group = roleGroups.get(role) ?? [];
     group.push(r);
-    roleGroups.set(r.role, group);
+    roleGroups.set(role, group);
   }
 
   // Pipeline value elevata: soft lock value > 20% budget

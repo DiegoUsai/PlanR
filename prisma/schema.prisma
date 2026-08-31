@@ -118,6 +118,11 @@ enum AbsenceType {
   ALTRO
 }
 
+enum AbsenceSource {
+  FACTORIAL
+  JIRA
+}
+
 enum UserRole {
   DEMAND_RESOURCE_MANAGER
   BU_MANAGER
@@ -264,8 +269,6 @@ model Resource {
   firstName     String
   lastName      String
   employeeId    String?
-  role          ResourceRole
-  level         ResourceLevel
   type          ResourceType
   belonging     ResourceBelonging
   pool          ResourcePool
@@ -287,17 +290,19 @@ model Resource {
 }
 
 model ResourceParameter {
-  id                    String    @id @default(uuid())
+  id                    String        @id @default(uuid())
   resourceId            String
-  weeklyHours           Decimal   @db.Decimal(5, 2)
-  dailyCost             Decimal   @db.Decimal(10, 2)
-  productivityCoeff     Decimal   @db.Decimal(4, 2) @default(1.00)
-  weeklyHoursBuffer     Decimal?  @db.Decimal(5, 2)
-  contractEndDate       DateTime? @db.Date
-  validFrom             DateTime  @db.Date
-  validTo               DateTime? @db.Date
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  role                  ResourceRole
+  level                 ResourceLevel
+  weeklyHours           Decimal       @db.Decimal(5, 2)
+  dailyCost             Decimal       @db.Decimal(10, 2)
+  productivityCoeff     Decimal       @db.Decimal(4, 2) @default(1.00)
+  weeklyHoursBuffer     Decimal?      @db.Decimal(5, 2)
+  contractEndDate       DateTime?     @db.Date
+  validFrom             DateTime      @db.Date
+  validTo               DateTime?     @db.Date
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   resource Resource @relation(fields: [resourceId], references: [id])
 
@@ -328,19 +333,19 @@ model Allocation {
 }
 
 model Absence {
-  id         String      @id @default(uuid())
+  id         String        @id @default(uuid())
   resourceId String
-  startDate  DateTime    @db.Date
-  endDate    DateTime    @db.Date
+  date       DateTime      @db.Date
+  hours      Decimal       @db.Decimal(4, 1)
   type       AbsenceType
-  hours      Decimal     @db.Decimal(4, 1)
-  notes      String?     @db.Text
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  source     AbsenceSource @default(FACTORIAL)
+  notes      String?       @db.Text
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   resource Resource @relation(fields: [resourceId], references: [id])
 
-  @@unique([resourceId, startDate])
+  @@unique([resourceId, date])
   @@map("absences")
 }
 

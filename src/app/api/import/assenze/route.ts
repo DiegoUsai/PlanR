@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     const absenceNotes = row.note?.trim() || null;
 
     const existing = await prisma.absence.findUnique({
-      where: { resourceId_startDate: { resourceId, startDate: absenceDate } },
+      where: { resourceId_date: { resourceId, date: absenceDate } },
     });
 
     if (existing) {
@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
         where: { id: existing.id },
         data: {
           hours,
-          endDate: absenceDate,
           type: absenceType as never,
+          source: "FACTORIAL",
           notes: absenceNotes || existing.notes,
         },
       });
@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
       await prisma.absence.create({
         data: {
           resourceId,
-          startDate: absenceDate,
-          endDate: absenceDate,
+          date: absenceDate,
           type: absenceType as never,
+          source: "FACTORIAL",
           hours,
           notes: absenceNotes,
         },

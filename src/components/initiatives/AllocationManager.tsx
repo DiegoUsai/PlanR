@@ -109,11 +109,11 @@ export default function AllocationManager({
       if (res.ok) {
         const data = await res.json();
         setResources(
-          data.map((r: ResourceOption) => ({
+          data.map((r: { id: string; lastName: string; firstName: string; parameters: { role: string }[] }) => ({
             id: r.id,
             lastName: r.lastName,
             firstName: r.firstName,
-            role: r.role,
+            role: r.parameters?.[0]?.role || "ALTRO",
           }))
         );
       }

@@ -14,7 +14,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
         include: { initiative: { include: { application: true } } },
         orderBy: { startDate: "desc" },
       },
-      absences: { orderBy: { startDate: "desc" } },
+      absences: { orderBy: { date: "desc" } },
       managedApps: true,
     },
   });

@@ -55,8 +55,7 @@ export async function GET() {
         },
         absences: {
           where: {
-            startDate: { lte: today },
-            endDate: { gte: today },
+            date: today,
           },
         },
       },

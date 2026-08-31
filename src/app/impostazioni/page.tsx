@@ -480,9 +480,9 @@ function ImportTab() {
       </Typography>
       <ImportSection
         title="Risorse"
-        description="Carica l'anagrafica risorse. Match per nominativo: le esistenti vengono aggiornate."
+        description="Carica l'anagrafica risorse. Match per id_dipendente o cognome+nome: le esistenti vengono aggiornate."
         endpoint="/api/import/risorse"
-        csvFormat={`nominativo;id_dipendente;ruolo;livello;tipologia;appartenenza;pool;is_ptf;data_ingresso_bu;note\nRossi Mario;12345;BE;Mid;Interna;BU Documentale;Evolutiva;false;2024-01-15;`}
+        csvFormat={`id_dipendente;cognome;nome;tipologia;appartenenza;pool;is_ptf;note\nHR001;Rossi;Mario;Interna;BU Documentale;Evolutiva;false;`}
       />
       <ImportSection
         title="Assenze (Factorial)"

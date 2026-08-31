@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const absences = await prisma.absence.findMany({
     where,
     include: { resource: true },
-    orderBy: { startDate: "desc" },
+    orderBy: { date: "desc" },
   });
 
   return NextResponse.json(absences);
@@ -29,23 +29,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { startDate, endDate, ...data } = parsed.data;
+  const { date, ...data } = parsed.data;
 
   const absence = await prisma.absence.upsert({
     where: {
-      resourceId_startDate: {
+      resourceId_date: {
         resourceId: data.resourceId,
-        startDate: new Date(startDate),
+        date: new Date(date),
       },
     },
     update: {
       ...data,
-      endDate: new Date(endDate),
     },
     create: {
       ...data,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      date: new Date(date),
     },
   });
 

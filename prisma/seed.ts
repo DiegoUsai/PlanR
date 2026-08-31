@@ -116,118 +116,124 @@ async function main() {
     prisma.resource.create({
       data: {
         lastName: "Rossi", firstName: "Marco", employeeId: "EMP-001",
-        role: "TECH_LEAD", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
-        joinDate: new Date("2020-03-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: true, attivo: true, joinDate: new Date("2020-03-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Bianchi", firstName: "Laura", employeeId: "EMP-002",
-        role: "PM", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
-        joinDate: new Date("2019-06-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: false, attivo: true, joinDate: new Date("2019-06-01"),
         managedApps: { connect: [{ id: sibarDoc.id }, { id: protocollo.id }] },
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Verdi", firstName: "Andrea", employeeId: "EMP-003",
-        role: "FE", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
-        joinDate: new Date("2022-01-15"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: false, attivo: true, joinDate: new Date("2022-01-15"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Neri", firstName: "Sara", employeeId: "EMP-004",
-        role: "FE", level: "JUNIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
-        joinDate: new Date("2025-09-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: false, attivo: true, joinDate: new Date("2025-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Colombo", firstName: "Luca", employeeId: "EMP-005",
-        role: "BE", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
-        joinDate: new Date("2018-04-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: true, attivo: true, joinDate: new Date("2018-04-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Ferrari", firstName: "Elena", employeeId: "EMP-006",
-        role: "BE", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
-        joinDate: new Date("2023-02-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: false, attivo: true, joinDate: new Date("2023-02-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Russo", firstName: "Paolo", employeeId: "EMP-007",
-        role: "ANALISTA", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
-        joinDate: new Date("2017-09-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: true, attivo: true, joinDate: new Date("2017-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Galli", firstName: "Chiara", employeeId: "EMP-008",
-        role: "BA_SENIOR", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
-        joinDate: new Date("2021-05-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: false, attivo: true, joinDate: new Date("2021-05-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Moretti", firstName: "Davide", employeeId: "EMP-009",
-        role: "ARCHITETTO", level: "SENIOR", type: "INTERNA",
-        belonging: "ENGINEERING_EXCELLENCE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
-        joinDate: new Date("2016-01-01"),
+        type: "INTERNA", belonging: "ENGINEERING_EXCELLENCE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: false, attivo: true, joinDate: new Date("2016-01-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Conti", firstName: "Alessia",
-        role: "FE", level: "MID", type: "ESTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
-        joinDate: new Date("2026-01-15"),
+        type: "ESTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        isPTF: false, attivo: true, joinDate: new Date("2026-01-15"),
         notes: "Consulente XYZ Solutions",
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Ricci", firstName: "Matteo", employeeId: "EMP-010",
-        role: "BE", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false, attivo: true,
-        joinDate: new Date("2021-11-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE",
+        isPTF: false, attivo: true, joinDate: new Date("2021-11-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Lombardi", firstName: "Anna", employeeId: "EMP-011",
-        role: "ANALISTA", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false, attivo: true,
-        joinDate: new Date("2024-03-01"),
+        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE",
+        isPTF: false, attivo: true, joinDate: new Date("2024-03-01"),
       },
     }),
   ]);
   console.log(`${resources.length} resources created`);
 
-  // Resource Parameters
-  for (const r of resources) {
-    const isJunior = r.level === "JUNIOR";
-    const isSenior = r.level === "SENIOR";
-    const isPTF = r.isPTF;
+  // Resource Parameters (role + level are temporalized here)
+  const resourceParams: { role: string; level: string }[] = [
+    { role: "TECH_LEAD", level: "SENIOR" },   // Rossi Marco
+    { role: "PM", level: "SENIOR" },           // Bianchi Laura
+    { role: "FE", level: "MID" },              // Verdi Andrea
+    { role: "FE", level: "JUNIOR" },           // Neri Sara
+    { role: "BE", level: "SENIOR" },           // Colombo Luca
+    { role: "BE", level: "MID" },              // Ferrari Elena
+    { role: "ANALISTA", level: "SENIOR" },     // Russo Paolo
+    { role: "BA_SENIOR", level: "SENIOR" },    // Galli Chiara
+    { role: "ARCHITETTO", level: "SENIOR" },   // Moretti Davide
+    { role: "FE", level: "MID" },              // Conti Alessia
+    { role: "BE", level: "MID" },              // Ricci Matteo
+    { role: "ANALISTA", level: "MID" },        // Lombardi Anna
+  ];
+
+  for (let i = 0; i < resources.length; i++) {
+    const r = resources[i];
+    const { role, level } = resourceParams[i];
+    const isJunior = level === "JUNIOR";
+    const isSenior = level === "SENIOR";
     const isExternal = r.type === "ESTERNA";
 
     await prisma.resourceParameter.create({
       data: {
         resourceId: r.id,
+        role: role as never,
+        level: level as never,
         weeklyHours: 40,
         dailyCost: isExternal ? 350 : isJunior ? 180 : isSenior ? 300 : 240,
         productivityCoeff: isJunior ? 1.3 : isSenior ? 0.85 : 1.0,
-        weeklyHoursBuffer: isPTF ? 16 : null,
+        weeklyHoursBuffer: r.isPTF ? 16 : null,
         contractEndDate: isExternal ? new Date("2027-06-30") : null,
         validFrom: new Date("2026-01-01"),
         validTo: null,
@@ -460,61 +466,34 @@ async function main() {
   ]);
   console.log("9 allocations created");
 
-  // Absences
+  // Absences (single-day model, source defaults to FACTORIAL)
   await Promise.all([
     prisma.absence.create({
-      data: {
-        resourceId: verdi.id, startDate: new Date("2026-09-08"),
-        endDate: new Date("2026-09-08"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: verdi.id, date: new Date("2026-09-08"), type: "FERIE", hours: 8 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: verdi.id, startDate: new Date("2026-09-09"),
-        endDate: new Date("2026-09-09"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: verdi.id, date: new Date("2026-09-09"), type: "FERIE", hours: 8 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: colombo.id, startDate: new Date("2026-09-15"),
-        endDate: new Date("2026-09-15"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: colombo.id, date: new Date("2026-09-15"), type: "FERIE", hours: 8 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: colombo.id, startDate: new Date("2026-09-16"),
-        endDate: new Date("2026-09-16"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: colombo.id, date: new Date("2026-09-16"), type: "FERIE", hours: 8 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: colombo.id, startDate: new Date("2026-09-17"),
-        endDate: new Date("2026-09-17"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: colombo.id, date: new Date("2026-09-17"), type: "FERIE", hours: 8 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: ferrari.id, startDate: new Date("2026-09-22"),
-        endDate: new Date("2026-09-22"), type: "PERMESSO", hours: 4,
-      },
+      data: { resourceId: ferrari.id, date: new Date("2026-09-22"), type: "PERMESSO", hours: 4 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: russo.id, startDate: new Date("2026-10-05"),
-        endDate: new Date("2026-10-05"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: russo.id, date: new Date("2026-10-05"), type: "FERIE", hours: 8 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: russo.id, startDate: new Date("2026-10-06"),
-        endDate: new Date("2026-10-06"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: russo.id, date: new Date("2026-10-06"), type: "FERIE", hours: 8 },
     }),
     prisma.absence.create({
-      data: {
-        resourceId: russo.id, startDate: new Date("2026-10-07"),
-        endDate: new Date("2026-10-07"), type: "FERIE", hours: 8,
-      },
+      data: { resourceId: russo.id, date: new Date("2026-10-07"), type: "FERIE", hours: 8 },
     }),
   ]);
   console.log("9 absences created");

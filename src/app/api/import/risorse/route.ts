@@ -3,29 +3,15 @@ import { prisma } from "@/lib/prisma";
 import Papa from "papaparse";
 
 interface ResourceRow {
-  nominativo: string;
   id_dipendente: string;
-  ruolo: string;
-  livello: string;
+  cognome: string;
+  nome: string;
   tipologia: string;
   appartenenza: string;
   pool: string;
   is_ptf: string;
-  data_ingresso_bu: string;
   note: string;
 }
-
-const ROLE_MAP: Record<string, string> = {
-  FE: "FE", BE: "BE", Analista: "ANALISTA", "Tech Lead": "TECH_LEAD",
-  Architetto: "ARCHITETTO", PM: "PM", "BA Senior": "BA_SENIOR", Altro: "ALTRO",
-  ANALISTA: "ANALISTA", TECH_LEAD: "TECH_LEAD", ARCHITETTO: "ARCHITETTO",
-  BA_SENIOR: "BA_SENIOR", ALTRO: "ALTRO",
-};
-
-const LEVEL_MAP: Record<string, string> = {
-  Junior: "JUNIOR", Mid: "MID", Senior: "SENIOR",
-  JUNIOR: "JUNIOR", MID: "MID", SENIOR: "SENIOR",
-};
 
 const TYPE_MAP: Record<string, string> = {
   Interna: "INTERNA", Esterna: "ESTERNA", INTERNA: "INTERNA", ESTERNA: "ESTERNA",
@@ -73,24 +59,10 @@ export async function POST(request: NextRequest) {
     const row = data[i];
     const rowNum = i + 2;
 
-    const nominativo = row.nominativo?.trim();
-    if (!nominativo) {
-      rowErrors.push({ row: rowNum, field: "nominativo", message: "Nominativo mancante" });
-      continue;
-    }
-    const parts = nominativo.split(/\s+/);
-    const lastName = parts[0] || "";
-    const firstName = parts.slice(1).join(" ") || "";
-
-    const role = ROLE_MAP[row.ruolo?.trim()];
-    if (!role) {
-      rowErrors.push({ row: rowNum, field: "ruolo", message: `Ruolo non valido: "${row.ruolo}"` });
-      continue;
-    }
-
-    const level = LEVEL_MAP[row.livello?.trim()];
-    if (!level) {
-      rowErrors.push({ row: rowNum, field: "livello", message: `Livello non valido: "${row.livello}"` });
+    const lastName = row.cognome?.trim();
+    const firstName = row.nome?.trim();
+    if (!lastName || !firstName) {
+      rowErrors.push({ row: rowNum, field: "cognome/nome", message: "Cognome e nome obbligatori" });
       continue;
     }
 
@@ -114,27 +86,29 @@ export async function POST(request: NextRequest) {
 
     const isPTF = row.is_ptf?.trim().toLowerCase() === "true" || row.is_ptf?.trim() === "1";
     const employeeId = row.id_dipendente?.trim() || null;
-    const joinDate = row.data_ingresso_bu?.trim();
-    const parsedJoinDate = joinDate && /^\d{4}-\d{2}-\d{2}$/.test(joinDate)
-      ? new Date(joinDate)
-      : null;
 
-    const existing = await prisma.resource.findFirst({
-      where: { lastName, firstName },
-    });
+    // Match by id_dipendente first, then by cognome+nome
+    let existing = null;
+    if (employeeId) {
+      existing = await prisma.resource.findFirst({
+        where: { employeeId },
+      });
+    }
+    if (!existing) {
+      existing = await prisma.resource.findFirst({
+        where: { lastName, firstName },
+      });
+    }
 
     if (existing) {
       await prisma.resource.update({
         where: { id: existing.id },
         data: {
           employeeId: employeeId || existing.employeeId,
-          role: role as never,
-          level: level as never,
           type: type as never,
           belonging: belonging as never,
           pool: pool as never,
           isPTF: isPTF,
-          joinDate: parsedJoinDate || existing.joinDate,
           notes: row.note?.trim() || existing.notes,
         },
       });
@@ -145,13 +119,10 @@ export async function POST(request: NextRequest) {
           lastName,
           firstName,
           employeeId,
-          role: role as never,
-          level: level as never,
           type: type as never,
           belonging: belonging as never,
           pool: pool as never,
           isPTF: isPTF,
-          joinDate: parsedJoinDate,
           notes: row.note?.trim() || null,
         },
       });
