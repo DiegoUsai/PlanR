@@ -42,8 +42,8 @@ const theme = createTheme({
     },
     divider: "#D9D9D9",
     saturation: {
-      underutilized: "#4CAF50",
-      optimal: "#2196F3",
+      underutilized: "#2196F3",
+      optimal: "#4CAF50",
       warning: "#FFC107",
       overallocated: "#F44336",
     },

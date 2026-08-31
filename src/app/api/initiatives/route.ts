@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
   const {
     desiredStartDate,
     desiredEndDate,
-    softLockExpiry,
     ...data
   } = parsed.data;
 
@@ -50,7 +49,6 @@ export async function POST(request: NextRequest) {
       ...data,
       desiredStartDate: desiredStartDate ? new Date(desiredStartDate) : null,
       desiredEndDate: desiredEndDate ? new Date(desiredEndDate) : null,
-      softLockExpiry: softLockExpiry ? new Date(softLockExpiry) : null,
     },
     include: { application: true, contract: true, module: true },
   });

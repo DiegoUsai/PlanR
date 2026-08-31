@@ -41,7 +41,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const {
     desiredStartDate,
     desiredEndDate,
-    softLockExpiry,
     ...data
   } = parsed.data;
 
@@ -50,8 +49,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     updateData.desiredStartDate = desiredStartDate ? new Date(desiredStartDate) : null;
   if (desiredEndDate !== undefined)
     updateData.desiredEndDate = desiredEndDate ? new Date(desiredEndDate) : null;
-  if (softLockExpiry !== undefined)
-    updateData.softLockExpiry = softLockExpiry ? new Date(softLockExpiry) : null;
 
   const initiative = await prisma.initiative.update({
     where: { id },
@@ -65,10 +62,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  const deps = await prisma.allocation.count({ where: { initiativeId: id } });
+  const [allocations, consuntivi] = await Promise.all([
+    prisma.allocation.count({ where: { initiativeId: id } }),
+    prisma.consuntivo.count({ where: { initiativeId: id } }),
+  ]);
+
+  const deps = allocations + consuntivi;
   if (deps > 0) {
+    const parts = [];
+    if (allocations > 0) parts.push(`${allocations} allocazioni`);
+    if (consuntivi > 0) parts.push(`${consuntivi} consuntivi`);
     return NextResponse.json(
-      { error: `Impossibile eliminare: ${deps} allocazioni collegate` },
+      { error: `Impossibile eliminare: ${parts.join(", ")} collegate` },
       { status: 409 }
     );
   }

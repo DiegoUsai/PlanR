@@ -16,6 +16,7 @@ export const createResourceSchema = z.object({
   belonging: resourceBelongingEnum,
   pool: resourcePoolEnum,
   isPTF: z.boolean().default(false),
+  attivo: z.boolean().default(true),
   joinDate: z.string().date().optional(),
   notes: z.string().optional(),
 });
@@ -28,6 +29,7 @@ export const createResourceParameterSchema = z.object({
   dailyCost: z.number().nonnegative(),
   productivityCoeff: z.number().positive().default(1.0),
   weeklyHoursBuffer: z.number().nonnegative().nullable().optional(),
+  contractEndDate: z.string().date().nullable().optional(),
   validFrom: z.string().date(),
   validTo: z.string().date().nullable().optional(),
 });

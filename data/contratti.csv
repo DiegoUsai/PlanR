@@ -1,0 +1,9 @@
+identifier,type,client,amount,startDate,endDate,pmEffortPercentage,notes
+CTR-2025-001,SUBAPPALTO,Comune di Bologna,85000.00,2025-01-01,2025-12-31,5,Manutenzione evolutiva Sicraweb
+CTR-2025-002,SUBAPPALTO,Comune di Modena,42000.00,2025-03-01,2025-12-31,5,MEV Protocollo J-Iride
+CTR-2025-003,APPALTO,Regione Sardegna,150000.00,2025-01-01,2026-06-30,8,Progetto migrazione documentale
+CTR-2025-004,SUBAPPALTO,Comune di Rimini,28000.00,2025-06-01,2025-12-31,5,Adeguamento Albo Pretorio
+CTR-2025-005,SUBAPPALTO,Comune di Ferrara,35000.00,2025-04-01,2026-03-31,5,Evolutive Atti Amministrativi
+CTR-2025-006,APPALTO,Unione Terre di Castelli,65000.00,2025-02-01,2025-12-31,6,Fatturazione e Conservazione
+CTR-2025-007,SUBAPPALTO,Comune di Parma,55000.00,2025-01-01,2025-12-31,5,Manutenzione Anagrafe e Tributi
+CTR-2025-008,SUBAPPALTO,Comune di Ravenna,22000.00,2025-07-01,2025-12-31,5,Servizi Cimiteriali digitali

@@ -262,8 +262,8 @@ Regola di instradamento:
 | divider | `#D9D9D9` | Separatori, bordi tabelle |
 
 **Codifica saturazione** (indipendente dalla palette brand):
-- Verde: 0-74% (sotto-utilizzo)
-- Blu: 75-85% (fascia ottimale)
+- Blu: 0-74% (sotto-utilizzo)
+- Verde: 75-85% (fascia ottimale)
 - Giallo: 86-90% (attenzione)
 - Rosso: >90% (sovra-allocazione)
 

@@ -33,11 +33,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     );
   }
 
-  const { startDate, endDate, ...data } = parsed.data;
+  const { startDate, endDate, softLockExpiry, ...data } = parsed.data;
   const updateData: Record<string, unknown> = { ...data };
 
   if (startDate) updateData.startDate = new Date(startDate);
   if (endDate) updateData.endDate = new Date(endDate);
+  if (softLockExpiry !== undefined)
+    updateData.softLockExpiry = softLockExpiry ? new Date(softLockExpiry) : null;
 
   if (endDate) {
     const current = await prisma.allocation.findUnique({

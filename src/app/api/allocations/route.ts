@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { startDate, endDate, ...data } = parsed.data;
+  const { startDate, endDate, softLockExpiry, ...data } = parsed.data;
   const allocationStart = new Date(startDate);
   const allocationEnd = new Date(endDate);
 
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       ...data,
       startDate: allocationStart,
       endDate: allocationEnd,
+      softLockExpiry: softLockExpiry ? new Date(softLockExpiry) : null,
     },
     include: {
       initiative: { include: { application: true } },

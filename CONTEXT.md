@@ -3,14 +3,15 @@
 Questo documento definisce i concetti del dominio dell'applicazione PlanR. E' la fonte di verita per la terminologia e le regole di business. Ogni modifica al modello dati deve essere verificata contro questo glossario.
 
 **Documento di riferimento:** [[BU_Documentale_SAP_Demand_Resource_Management_Draft]] (Draft v3, 6 luglio 2026).
+**Specifiche applicazione:** docs/spec.md (Draft v2, 31 agosto 2026).
 
 ---
 
 ## Contesto
 
-La **BU Documentale & SAP** opera con circa 60 persone su 15 progetti attivi. PlanR gestisce il **Resource Planning** (sezione 8 del Draft): la pianificazione delle allocazioni di risorse su iniziative, il monitoraggio della saturazione e le dashboard operative/strategiche.
+La **BU Documentale & SAP** opera con circa 60 persone su 15 progetti attivi. PlanR gestisce il **Resource Planning** (sezione 8 del Draft): la pianificazione delle allocazioni di risorse su iniziative, il monitoraggio della saturazione e le dashboard operative e strategiche per il Demand & Resource Manager e il BU Manager.
 
-PlanR **non copre** il Demand Management (pipeline richieste, sessione del mercoledi, classificazione) che resta su **Jira**.
+PlanR **non copre** il Demand Management (pipeline richieste, sessione del mercoledi, classificazione) che resta su **Jira**. Il flusso prevede che il PTF fornisca le stime nella sessione del mercoledi, dopodiche viene fatta un'estrazione CSV da Jira per alimentare il resource planning.
 
 ---
 
@@ -25,7 +26,6 @@ Soluzione software gestita dalla BU. E' il contenitore di primo livello: ogni in
 | Applicativo | Application | Soluzione software gestita dalla BU |
 | PM assegnati | assignedPMs | Uno o piu Project Manager responsabili (relazione N:N con Risorsa) |
 | Moduli | modules | Componenti logici dell'applicativo (1:N) |
-| Finestre di rilascio | releaseWindows | Periodi di blocco rilascio imposti dal cliente (1:N) |
 | Contratti | contracts | Contratti che coprono questo applicativo (N:N) |
 
 ### Modulo (Module)
@@ -39,7 +39,7 @@ Contratto attivo con un cliente, legato a uno o piu applicativi. Determina il pe
 | Campo chiave | Significato di business |
 |---|---|
 | tipo | **Subappalto** (PA, rendicontazione pesante) o **Appalto** (diretto, piu snello) |
-| data_fine | Vincolo di pianificazione: le allocazioni non possono superarla |
+| data_fine | Vincolo di pianificazione: warning (non blocco) se allocazioni la superano |
 | percentuale_effort_pm | % di effort PM generata per ogni iniziativa (es. 5%). Varia per contratto perche contratti diversi hanno complessita amministrativa diversa |
 
 ### Iniziativa (Initiative)
@@ -50,9 +50,8 @@ Intervento (MEV o MAD) su un applicativo nel perimetro di un contratto. Corrispo
 |---|---|
 | tipologia | **MEV** (Manutenzione Evolutiva) o **MAD** (Manutenzione Adeguativa) |
 | status | Ciclo di vita: In Attesa di Allocazione -> Allocato -> In Lavorazione -> Completato. Stati laterali: Ready - Pending Resources, In Attesa di Copertura Contrattuale, Fuori Scope |
-| soft_lock | Risorse prenotate temporaneamente in attesa di conferma contrattuale (sezione 13 Draft) |
-| soft_lock_scadenza | Data limite del soft lock — condivisa da tutte le allocazioni soft dell'iniziativa |
-| affiancamento | Flag: l'iniziativa e leva di crescita, prevede affiancamento senior-junior |
+| affidabilita_stima | Alta, Media, Bassa — indicatore sintetico di quanto la stima e affidabile (unifica rischio tecnico e rischio stima) |
+| vincoli_criticita | Note testuali su vincoli e criticita identificati dal PTF (dipendenze, complessita, debito tecnico) |
 | taglia_sizing | XS/S/M/L/XL — importata da Jira (sezione 6.1 Draft) |
 | polarita | Prima meta / Seconda meta — impatta il buffer di stima (sezione 6.2 Draft) |
 | stima_gg | Stima complessiva in giorni/uomo (sviluppo + analisi/test) |
@@ -75,8 +74,11 @@ Persona della BU.
 | livello | Junior, Mid, Senior |
 | tipologia | Interna o Esterna (consulenti/fornitori) — distinzione per analisi costi e mix |
 | appartenenza | BU Documentale o Engineering Excellence (sezione 9 Draft) |
-| pool | **Manutenzione** (allocate al 100% su manutenzione, non disponibili per evolutiva) o **Evolutiva/Adeguativa** (allocate dinamicamente) |
+| pool | **Manutenzione** (allocate su manutenzione con percentuale configurabile) o **Evolutiva/Adeguativa** (allocate dinamicamente) |
 | is_ptf | Membro del Presidio Tecnico Funzionale — ha impegni strutturali (sessioni, review) che riducono la capacita allocabile |
+| attivo | Se la risorsa e attualmente attiva nella BU. Auto-calcolato da data_fine_contratto del Parametro risorsa; forzabile manualmente. Risorse non attive non compaiono nelle viste operative ma restano nello storico |
+
+**Risorse di manutenzione:** allocate con una **percentuale configurabile** (non necessariamente 100%), visualizzata come blocco fisso nella pivot. La capacita residua e disponibile per evolutiva.
 
 **Risorse Engineering Excellence:** allocate sulle iniziative della BU quando il PTF rileva necessita architetturali. La loro capacita allocabile va concordata con il responsabile EE perche hanno impegni fuori perimetro non visibili nell'app.
 
@@ -92,6 +94,7 @@ Storico temporalizzato degli attributi variabili di una risorsa. Un cambio crea 
 | costo_giornata | Costo giornaliero in euro nel periodo |
 | coefficiente_produttivita | Fattore rispetto al baseline mid-level (default 1.0). Junior: 1.3, Senior: 0.85. Impatta la pianificazione temporale, non il costo |
 | buffer_ore_settimanali | Override del buffer globale BU per questa risorsa. Se null, si usa il default dalla Configurazione BU |
+| data_fine_contratto | Data fine contratto della risorsa. Quando superata, il flag `attivo` sulla Risorsa passa a false. L'app genera alert se allocazioni superano questa data |
 
 **Regola di non retroattivita:** un nuovo parametro con data odierna o futura chiude automaticamente il record precedente. I calcoli storici restano invariati.
 
@@ -104,15 +107,20 @@ Assegnazione di una Risorsa a un'Iniziativa per un periodo e una percentuale di 
 | Campo chiave | Significato |
 |---|---|
 | tipo_lock | **Soft** (prenotazione temporanea) o **Hard** (confermata) |
+| soft_lock_scadenza | Data scadenza del soft lock. Obbligatoria se tipo_lock = Soft. Alla scadenza l'app genera alert. Ogni allocazione ha la propria scadenza indipendente |
 | percentuale_allocazione | 1-100%, quota di tempo della risorsa su questa iniziativa |
 | effort_allocato_gg | Giorni/uomo allocati |
-| ruolo_nell_iniziativa | Ruolo specifico in questa iniziativa (puo differire dal ruolo anagrafico) |
-| is_senior_affiancamento | Se true, questa e l'allocazione del senior che affianca un junior |
+| ruolo_nell_iniziativa | Ruolo specifico in questa iniziativa (stessa enum del ruolo Risorsa: FE, BE, Analista, Tech Lead, Architetto, PM, BA Senior, Altro) |
+| affiancamento | Se true, questa allocazione e una leva di crescita (sezione 8.2 Draft) |
+| is_senior_affiancamento | Se true e affiancamento = true, questa e l'allocazione del senior che affianca |
 
 **Soft lock vs hard lock:**
-- **Soft:** prenotazione temporanea in attesa di conferma contrattuale. Codifica visiva a tratteggio. Si attiva quando Jira segnala "Preventivo Inviato" o manualmente.
+- **Soft:** prenotazione temporanea in attesa di conferma contrattuale. Codifica visiva a tratteggio. Si attiva manualmente dal D&R Manager.
 - **Hard:** allocazione confermata.
 - Entrambi occupano capacita e contano nella saturazione.
+- Allocazioni diverse sulla stessa iniziativa possono avere scadenze e tipi di lock differenti.
+
+**Affiancamento:** quando un'allocazione ha il flag affiancamento attivo, l'app consente una seconda allocazione sulla stessa iniziativa con is_senior_affiancamento = true. Le due allocazioni sono collegate visivamente nella pivot.
 
 ---
 
@@ -128,9 +136,39 @@ Record di ferie/assenza importato da Factorial (CSV settimanale). Riduce la capa
 | Match per nominativo con l'anagrafica risorse |
 | Deduplicazione per risorsa + data |
 
-### Finestra di rilascio (ReleaseWindow)
+### Consuntivo (Consuntivo) — predisposizione
 
-Periodo in cui il cliente non accetta rilasci, configurato a livello di applicativo. Vincolo **informativo** (non bloccante): l'app segnala visivamente e genera alert se una data di fine iniziativa ricade nel blocco.
+Record di ore effettivamente lavorate, importato da worklog Jira CSV. Chiude il ciclo di pianificazione confrontando consuntivo con stima.
+
+| Campo | Note |
+|---|---|
+| iniziativa | FK -> Iniziativa |
+| risorsa | FK -> Risorsa |
+| periodo | Periodo di riferimento (es. "2026-08") |
+| ore_consuntivate | Ore lavorate nel periodo |
+
+**Nota:** entita predisposta nello schema, funzionalita completa post-pilota.
+
+### Alert (Alert)
+
+Segnalazione persistente di situazioni che richiedono attenzione.
+
+| Campo | Note |
+|---|---|
+| tipo | Uno degli 11 alert definiti (8 operativi + 3 strategici) |
+| severita | Operativo o Strategico |
+| stato | Attivo, Preso in carico, Silenziato, Risolto |
+| motivazione_silenziamento | Obbligatoria quando silenziato |
+
+### ImportLog (ImportLog)
+
+Log persistente delle operazioni di import dati.
+
+| Campo | Note |
+|---|---|
+| tipo | Risorse, Assenze, Iniziative Jira, Consuntivo |
+| righe_totali, righe_importate, righe_errore | Contatori |
+| errori | JSON con dettaglio riga per riga |
 
 ### Configurazione BU (BUConfiguration)
 
@@ -208,21 +246,21 @@ Effort Pianificato = Stima GG x (1 + Buffer%)
 
 ---
 
-## I tre orizzonti temporali
+## Orizzonte temporale
+
+Per il MVP: **solo orizzonte corto** (12 settimane scorrevoli).
 
 | Orizzonte | Finestra | Dettaglio | Comportamento |
 |---|---|---|---|
-| **Corto** | 4 settimane | Risorsa nominativa, alta precisione | Allocazioni con risorsa assegnata. Alert su sovra-allocazione |
-| **Medio** | 8 settimane | Profilo/ruolo, media precisione | Allocazioni possono essere a livello di profilo senza risorsa nominativa |
-| **Lungo** | 12 settimane | Previsionale, bassa precisione | Vista aggregata per progetto e profilo. Per anticipare colli di bottiglia |
+| **Corto** | 12 settimane | Risorsa nominativa, alta precisione | Allocazioni con risorsa assegnata. Alert su sovra-allocazione |
 
-La transizione e scorrevole: allocazioni dell'orizzonte medio che entrano nel corto senza risorsa nominativa generano un alert.
+Orizzonti medio e lungo rimandati a fase successiva.
 
 ---
 
 ## I due pool di risorse
 
-- **Pool Manutenzione:** risorse allocate al 100% su manutenzione, visualizzate come blocco fisso nella pivot. Non disponibili per evolutiva.
+- **Pool Manutenzione:** risorse allocate su manutenzione con **percentuale configurabile** (tipicamente 100%, ma puo essere inferiore). La percentuale di allocazione sulla manutenzione e visualizzata come blocco fisso nella pivot; la capacita residua e disponibile per allocazioni di evolutiva/adeguativa.
 - **Pool Evolutiva/Adeguativa:** allocate dinamicamente per richiesta tramite il processo di demand.
 
 Il cambio di pool e un'operazione esplicita del D&R Manager, tracciata nel log.
@@ -231,19 +269,7 @@ Il cambio di pool e un'operazione esplicita del D&R Manager, tracciata nel log.
 
 ## Profilo di competenza (vista calcolata)
 
-Non e un'entita persistente. E' un aggregato derivato in tempo reale dallo storico delle allocazioni completate.
-
-```
-Competenza (Risorsa R, Applicativo A, Modulo M) =
-    Somma effort_allocato_gg delle Allocazioni completate di R
-    su Iniziative con applicativo = A e modulo = M
-```
-
-Espresso come distribuzione percentuale a due livelli:
-- **Applicativo:** es. SibarDoc 60%, Protocollo 40%
-- **Modulo:** es. SibarDoc: Firma 70%, Conservazione 30%
-
-Alimenta il **suggerimento risorse** nell'allocazione: ranking per competenza > disponibilita > ruolo compatibile.
+Non e un'entita persistente. E' un aggregato derivato in tempo reale dallo storico delle allocazioni completate. **Post-pilota.**
 
 ---
 
@@ -255,10 +281,9 @@ Alimenta il **suggerimento risorse** nell'allocazione: ranking per competenza > 
 |---|---|
 | Sovra-allocazione | Saturazione > soglia allarme per > 2 settimane consecutive |
 | Sotto-utilizzo | Saturazione < 50% per > 2 settimane consecutive |
-| Scadenza soft lock | Data scadenza superata |
+| Scadenza soft lock | Data scadenza soft lock su allocazione superata |
 | Ready - Pending Resources | Iniziativa in questo stato da > 2 settimane |
 | Iniziativa senza allocazioni | Nell'orizzonte corto senza allocazioni nominative |
-| Conflitto finestra rilascio | Data fine iniziativa in finestra di blocco |
 | Prossimita scadenza contratto | Allocazione negli ultimi 30 giorni del contratto |
 | Slittamento per coefficiente | Effort effettivo fa superare la data consegna desiderata |
 | Costo > valore economico | Costo previsto supera il valore economico stimato |
@@ -271,17 +296,28 @@ Alimenta il **suggerimento risorse** nell'allocazione: ranking per competenza > 
 | Pipeline value elevata | Soft lock value > 20% budget annuale |
 | Accumulo Pending Resources | > 3 iniziative Pending Resources sullo stesso profilo |
 
-Gli alert possono essere: presi in carico, silenziati (con motivazione), risolti automaticamente.
+Gli alert possono essere: presi in carico, silenziati (con motivazione obbligatoria), risolti automaticamente. Persistiti in DB.
+
+---
+
+## Codifica colori saturazione
+
+| Fascia | Colore | Range |
+|---|---|---|
+| Sotto-utilizzo | Blu (#2196F3) | 0-74% |
+| Fascia ottimale | Verde (#4CAF50) | 75-85% |
+| Attenzione | Giallo (#FFC107) | 86-90% |
+| Sovra-allocazione | Rosso (#F44336) | >90% |
 
 ---
 
 ## Integrazioni esterne
 
-### Jira (sola lettura)
+### Jira (sola lettura, import CSV)
 
-Jira e il **sistema master**. L'app legge via REST API v3, sync giornaliera o manuale.
+Jira e il **sistema master** per il demand. L'app importa dati via CSV (no sync automatico per MVP).
 
-**Dati importati:** epiche Proceed, stato epica, worklog, priorita, due date, taglia sizing, valore economico, stato "Preventivo Inviato" (trigger soft lock).
+**Dati importati:** epiche Proceed, stato epica, worklog, priorita, due date, taglia sizing, valore economico. Formato CSV: da definire (in attesa del tracciato Jira).
 
 **Regola:** in caso di conflitto, Jira prevale per i campi che governa (stato, worklog, priorita). L'app governa allocazioni, percentuali, date pianificate.
 
@@ -299,3 +335,27 @@ Import settimanale manuale di assenze (CSV: nominativo;giorno;ore_assenza). Matc
 | **BU Manager** | Sola lettura | Settimanale/mensile — dashboard strategiche, decisioni escalation |
 
 Autenticazione: Google Workspace aziendale (OAuth 2.0). Ruoli mappati su email autorizzate.
+
+---
+
+## Dashboard MVP
+
+| Dashboard | Tipo | Contenuto principale |
+|---|---|---|
+| 9.1 Saturazione risorse | Operativa | Heatmap, distribuzione per fascia, trend |
+| 9.4 Soft lock attivi | Operativa | Lista soft lock, valore totale, risorse impegnate |
+| 10.1 Panoramica BU | Strategica | Gauge saturazione, donut fascia, top profili critici, pipeline |
+| 10.2 Accuratezza stime | Strategica | **Placeholder** (richiede Consuntivo) |
+| 10.4 Pipeline value | Strategica | Valore in attesa, distribuzione per applicativo/fascia temporale |
+
+**Escluse dal MVP:** 9.2 Tempo di ciclo, 9.3 Tasso completamento PTF, 10.3 Richieste bloccate/zombie (processi gestiti su Jira).
+
+---
+
+## Funzionalita post-pilota
+
+- Consuntivo e accuratezza stime (dashboard 10.2 completa)
+- Profilo di competenza e suggerimento risorse
+- Allocazione automatica PM
+- Orizzonti medio e lungo
+- Import automatico da Jira (sync API vs CSV)

@@ -54,10 +54,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  const deps = await prisma.allocation.count({ where: { resourceId: id } });
+  const [allocations, consuntivi, parameters, absences] = await Promise.all([
+    prisma.allocation.count({ where: { resourceId: id } }),
+    prisma.consuntivo.count({ where: { resourceId: id } }),
+    prisma.resourceParameter.count({ where: { resourceId: id } }),
+    prisma.absence.count({ where: { resourceId: id } }),
+  ]);
+
+  const deps = allocations + consuntivi + parameters + absences;
   if (deps > 0) {
+    const parts = [];
+    if (allocations > 0) parts.push(`${allocations} allocazioni`);
+    if (consuntivi > 0) parts.push(`${consuntivi} consuntivi`);
+    if (parameters > 0) parts.push(`${parameters} parametri`);
+    if (absences > 0) parts.push(`${absences} assenze`);
     return NextResponse.json(
-      { error: `Impossibile eliminare: ${deps} allocazioni collegate` },
+      { error: `Impossibile eliminare: ${parts.join(", ")} collegate` },
       { status: 409 }
     );
   }

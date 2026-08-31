@@ -58,10 +58,10 @@ enum AnalysisTestSize {
   A_L
 }
 
-enum RiskLevel {
-  ALTO
-  MEDIO
-  BASSO
+enum ReliabilityLevel {
+  ALTA
+  MEDIA
+  BASSA
 }
 
 enum EconomicValue {
@@ -118,17 +118,42 @@ enum AbsenceType {
   ALTRO
 }
 
-enum AllocationRole {
-  FE
-  BE
-  ANALISTA
-  TECH_LEAD
-  ALTRO
-}
-
 enum UserRole {
   DEMAND_RESOURCE_MANAGER
   BU_MANAGER
+}
+
+enum AlertType {
+  SOVRA_ALLOCAZIONE
+  SOTTO_UTILIZZO
+  SCADENZA_SOFT_LOCK
+  READY_PENDING_RESOURCES
+  INIZIATIVA_SENZA_ALLOCAZIONI
+  PROSSIMITA_SCADENZA_CONTRATTO
+  SLITTAMENTO_COEFFICIENTE
+  COSTO_SUPERIORE_VALORE
+  PROFILO_SATURO
+  PIPELINE_VALUE_ELEVATA
+  ACCUMULO_PENDING_RESOURCES
+}
+
+enum AlertSeverity {
+  OPERATIVO
+  STRATEGICO
+}
+
+enum AlertStatus {
+  ATTIVO
+  PRESO_IN_CARICO
+  SILENZIATO
+  RISOLTO
+}
+
+enum ImportType {
+  RISORSE
+  ASSENZE
+  INIZIATIVE_JIRA
+  CONSUNTIVO
 }
 
 // ──────────────────────────────────────────────
@@ -142,12 +167,11 @@ model Application {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  modules        Module[]
-  releaseWindows ReleaseWindow[]
-  initiatives    Initiative[]
+  modules     Module[]
+  initiatives Initiative[]
 
-  contracts      Contract[]       @relation("ApplicationContracts")
-  assignedPMs    Resource[]       @relation("ApplicationPMs")
+  contracts   Contract[] @relation("ApplicationContracts")
+  assignedPMs Resource[] @relation("ApplicationPMs")
 
   @@map("applications")
 }
@@ -186,40 +210,38 @@ model Contract {
 }
 
 model Initiative {
-  id                    String           @id @default(uuid())
+  id                    String            @id @default(uuid())
   applicationId         String
   moduleId              String?
   contractId            String
   jiraEpicId            String?
   title                 String
-  description           String?          @db.Text
+  description           String?           @db.Text
   type                  InitiativeType
   priority              Priority
-  desiredStartDate      DateTime?        @db.Date
-  desiredEndDate        DateTime?        @db.Date
-  plannedStartDate      DateTime?        @db.Date
-  plannedEndDate        DateTime?        @db.Date
-  estimatedDays         Decimal?         @db.Decimal(8, 2)
-  requiredProfiles      String?          @db.Text
-  status                InitiativeStatus @default(IN_ATTESA_DI_ALLOCAZIONE)
-  softLock              Boolean          @default(false)
-  softLockExpiry        DateTime?        @db.Date
-  mentoring             Boolean          @default(false)
+  desiredStartDate      DateTime?         @db.Date
+  desiredEndDate        DateTime?         @db.Date
+  plannedStartDate      DateTime?         @db.Date
+  plannedEndDate        DateTime?         @db.Date
+  estimatedDays         Decimal?          @db.Decimal(8, 2)
+  requiredProfiles      String?           @db.Text
+  status                InitiativeStatus  @default(IN_ATTESA_DI_ALLOCAZIONE)
   sizingSize            SizingSize?
   polarity              Polarity?
   analysisTestSize      AnalysisTestSize?
-  technicalRiskFlag     RiskLevel?
-  estimateRiskFlag      RiskLevel?
-  reuseFlag             Boolean          @default(false)
+  affidabilitaStima     ReliabilityLevel?
+  vincoliCriticita      String?           @db.Text
+  reuseFlag             Boolean           @default(false)
   economicValue         EconomicValue?
-  notes                 String?          @db.Text
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  notes                 String?           @db.Text
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
-  application Application @relation(fields: [applicationId], references: [id])
-  module      Module?     @relation(fields: [moduleId], references: [id])
-  contract    Contract    @relation(fields: [contractId], references: [id])
+  application Application  @relation(fields: [applicationId], references: [id])
+  module      Module?      @relation(fields: [moduleId], references: [id])
+  contract    Contract     @relation(fields: [contractId], references: [id])
   allocations Allocation[]
+  consuntivi  Consuntivo[]
 
   @@map("initiatives")
 }
@@ -233,6 +255,7 @@ model Resource {
   belonging     ResourceBelonging
   pool          ResourcePool
   isPTF         Boolean           @default(false)
+  attivo        Boolean           @default(true)
   joinDate      DateTime?         @db.Date
   notes         String?           @db.Text
   createdAt     DateTime          @default(now())
@@ -241,6 +264,7 @@ model Resource {
   parameters    ResourceParameter[]
   allocations   Allocation[]
   absences      Absence[]
+  consuntivi    Consuntivo[]
 
   managedApps   Application[] @relation("ApplicationPMs")
 
@@ -254,6 +278,7 @@ model ResourceParameter {
   dailyCost             Decimal   @db.Decimal(10, 2)
   productivityCoeff     Decimal   @db.Decimal(4, 2) @default(1.00)
   weeklyHoursBuffer     Decimal?  @db.Decimal(5, 2)
+  contractEndDate       DateTime? @db.Date
   validFrom             DateTime  @db.Date
   validTo               DateTime? @db.Date
   createdAt             DateTime  @default(now())
@@ -265,19 +290,21 @@ model ResourceParameter {
 }
 
 model Allocation {
-  id                      String         @id @default(uuid())
+  id                      String       @id @default(uuid())
   initiativeId            String
   resourceId              String
   lockType                LockType
+  softLockExpiry          DateTime?    @db.Date
   allocationPercentage    Int
-  startDate               DateTime       @db.Date
-  endDate                 DateTime       @db.Date
-  allocatedEffortDays     Decimal        @db.Decimal(8, 2)
-  roleInInitiative        AllocationRole
-  isSeniorMentoring       Boolean        @default(false)
-  notes                   String?        @db.Text
-  createdAt               DateTime       @default(now())
-  updatedAt               DateTime       @updatedAt
+  startDate               DateTime     @db.Date
+  endDate                 DateTime     @db.Date
+  allocatedEffortDays     Decimal      @db.Decimal(8, 2)
+  roleInInitiative        ResourceRole
+  affiancamento           Boolean      @default(false)
+  isSeniorAffiancamento   Boolean      @default(false)
+  notes                   String?      @db.Text
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   initiative Initiative @relation(fields: [initiativeId], references: [id])
   resource   Resource   @relation(fields: [resourceId], references: [id])
@@ -302,18 +329,53 @@ model Absence {
   @@map("absences")
 }
 
-model ReleaseWindow {
-  id            String   @id @default(uuid())
-  applicationId String
-  startDate     DateTime @db.Date
-  endDate       DateTime @db.Date
-  reason        String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model Consuntivo {
+  id              String   @id @default(uuid())
+  initiativeId    String
+  resourceId      String
+  period          String
+  hoursLogged     Decimal  @db.Decimal(8, 2)
+  loadDate        DateTime @db.Date
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  application Application @relation(fields: [applicationId], references: [id])
+  initiative Initiative @relation(fields: [initiativeId], references: [id])
+  resource   Resource   @relation(fields: [resourceId], references: [id])
 
-  @@map("release_windows")
+  @@unique([resourceId, initiativeId, period])
+  @@map("consuntivi")
+}
+
+model Alert {
+  id                String        @id @default(uuid())
+  type              AlertType
+  severity          AlertSeverity
+  status            AlertStatus   @default(ATTIVO)
+  entityType        String
+  entityId          String
+  message           String        @db.Text
+  silenceReason     String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  resolvedAt        DateTime?
+
+  @@map("alerts")
+}
+
+model ImportLog {
+  id            String     @id @default(uuid())
+  type          ImportType
+  filename      String
+  totalRows     Int
+  importedRows  Int
+  updatedRows   Int        @default(0)
+  errorRows     Int        @default(0)
+  errors        Json?
+  importedBy    String?
+  createdAt     DateTime   @default(now())
+
+  @@map("import_logs")
 }
 
 model BUConfiguration {
@@ -343,12 +405,36 @@ model WeeklySnapshot {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  role      UserRole
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  role          UserRole  @default(BU_MANAGER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
 
   @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
 }

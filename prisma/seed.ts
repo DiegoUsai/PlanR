@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding database...");
 
-  // BU Configuration
   const config = await prisma.bUConfiguration.create({
     data: {
       annualBudget: 2500000,
@@ -96,7 +95,7 @@ async function main() {
     prisma.resource.create({
       data: {
         name: "Rossi Marco", role: "TECH_LEAD", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
         joinDate: new Date("2020-03-01"),
         managedApps: { connect: [] },
       },
@@ -104,7 +103,7 @@ async function main() {
     prisma.resource.create({
       data: {
         name: "Bianchi Laura", role: "PM", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2019-06-01"),
         managedApps: { connect: [{ id: sibarDoc.id }, { id: protocollo.id }] },
       },
@@ -112,56 +111,56 @@ async function main() {
     prisma.resource.create({
       data: {
         name: "Verdi Andrea", role: "FE", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2022-01-15"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Neri Sara", role: "FE", level: "JUNIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2025-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Colombo Luca", role: "BE", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
         joinDate: new Date("2018-04-01"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Ferrari Elena", role: "BE", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2023-02-01"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Russo Paolo", role: "ANALISTA", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: true, attivo: true,
         joinDate: new Date("2017-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Galli Chiara", role: "BA_SENIOR", level: "SENIOR", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2021-05-01"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Moretti Davide", role: "ARCHITETTO", level: "SENIOR", type: "INTERNA",
-        belonging: "ENGINEERING_EXCELLENCE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false,
+        belonging: "ENGINEERING_EXCELLENCE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2016-01-01"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Conti Alessia", role: "FE", level: "MID", type: "ESTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA", isPTF: false, attivo: true,
         joinDate: new Date("2026-01-15"),
         notes: "Consulente XYZ Solutions",
       },
@@ -169,14 +168,14 @@ async function main() {
     prisma.resource.create({
       data: {
         name: "Ricci Matteo", role: "BE", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false, attivo: true,
         joinDate: new Date("2021-11-01"),
       },
     }),
     prisma.resource.create({
       data: {
         name: "Lombardi Anna", role: "ANALISTA", level: "MID", type: "INTERNA",
-        belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false,
+        belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE", isPTF: false, attivo: true,
         joinDate: new Date("2024-03-01"),
       },
     }),
@@ -197,31 +196,13 @@ async function main() {
         dailyCost: isExternal ? 350 : isJunior ? 180 : isSenior ? 300 : 240,
         productivityCoeff: isJunior ? 1.3 : isSenior ? 0.85 : 1.0,
         weeklyHoursBuffer: isPTF ? 16 : null,
+        contractEndDate: isExternal ? new Date("2027-06-30") : null,
         validFrom: new Date("2026-01-01"),
         validTo: null,
       },
     });
   }
   console.log("Resource parameters created");
-
-  // Release Windows
-  await prisma.releaseWindow.create({
-    data: {
-      applicationId: sibarDoc.id,
-      startDate: new Date("2026-12-15"),
-      endDate: new Date("2027-01-10"),
-      reason: "Freeze natalizio - Ministero della Giustizia",
-    },
-  });
-  await prisma.releaseWindow.create({
-    data: {
-      applicationId: protocollo.id,
-      startDate: new Date("2026-08-01"),
-      endDate: new Date("2026-08-31"),
-      reason: "Freeze estivo",
-    },
-  });
-  console.log("2 release windows created");
 
   // Initiatives
   const mevFirma = await prisma.initiative.create({
@@ -241,8 +222,7 @@ async function main() {
       status: "ALLOCATO",
       sizingSize: "L",
       polarity: "PRIMA_META",
-      technicalRiskFlag: "MEDIO",
-      estimateRiskFlag: "BASSO",
+      affidabilitaStima: "MEDIA",
       economicValue: "FROM_20K_TO_30K",
     },
   });
@@ -263,7 +243,8 @@ async function main() {
       status: "IN_LAVORAZIONE",
       sizingSize: "M",
       polarity: "SECONDA_META",
-      technicalRiskFlag: "ALTO",
+      affidabilitaStima: "BASSA",
+      vincoliCriticita: "Dipendenza da specifiche AgID in fase di finalizzazione",
       economicValue: "FROM_10K_TO_15K",
     },
   });
@@ -282,8 +263,8 @@ async function main() {
       status: "IN_ATTESA_DI_ALLOCAZIONE",
       sizingSize: "XL",
       polarity: "PRIMA_META",
-      technicalRiskFlag: "ALTO",
-      estimateRiskFlag: "ALTO",
+      affidabilitaStima: "BASSA",
+      vincoliCriticita: "Standard UNI 11386:2025 non ancora ratificato, possibili revisioni",
       reuseFlag: true,
       economicValue: "FROM_30K_TO_40K",
     },
@@ -301,8 +282,6 @@ async function main() {
       estimatedDays: 35,
       requiredProfiles: "1 FE, 2 BE",
       status: "IN_ATTESA_COPERTURA_CONTRATTUALE",
-      softLock: true,
-      softLockExpiry: new Date("2026-10-15"),
       sizingSize: "M",
       economicValue: "FROM_15K_TO_20K",
     },
@@ -331,7 +310,7 @@ async function main() {
   const [rossi, bianchi, verdi, neri, colombo, ferrari, russo, galli, moretti, conti, ricci, lombardi] = resources;
 
   await Promise.all([
-    // Firma massiva - allocazioni attive
+    // Firma massiva - hard allocations
     prisma.allocation.create({
       data: {
         initiativeId: mevFirma.id,
@@ -354,7 +333,8 @@ async function main() {
         endDate: new Date("2026-11-15"),
         allocatedEffortDays: 12,
         roleInInitiative: "FE",
-        isSeniorMentoring: false,
+        affiancamento: true,
+        isSeniorAffiancamento: false,
       },
     }),
     prisma.allocation.create({
@@ -367,7 +347,8 @@ async function main() {
         endDate: new Date("2026-10-15"),
         allocatedEffortDays: 3,
         roleInInitiative: "FE",
-        isSeniorMentoring: true,
+        affiancamento: true,
+        isSeniorAffiancamento: true,
         notes: "Affiancamento senior per Neri su firma massiva",
       },
     }),
@@ -422,12 +403,13 @@ async function main() {
       },
     }),
 
-    // Soft lock - SDI v2
+    // Soft lock - SDI v2 (softLockExpiry on allocation now)
     prisma.allocation.create({
       data: {
         initiativeId: softLockInit.id,
         resourceId: conti.id,
         lockType: "SOFT",
+        softLockExpiry: new Date("2026-10-15"),
         allocationPercentage: 50,
         startDate: new Date("2026-11-01"),
         endDate: new Date("2027-02-28"),
@@ -440,6 +422,7 @@ async function main() {
         initiativeId: softLockInit.id,
         resourceId: colombo.id,
         lockType: "SOFT",
+        softLockExpiry: new Date("2026-10-15"),
         allocationPercentage: 40,
         startDate: new Date("2026-11-15"),
         endDate: new Date("2027-03-15"),

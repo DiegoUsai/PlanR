@@ -13,7 +13,6 @@ export async function GET(_request: NextRequest, { params }: Params) {
       assignedPMs: true,
       modules: true,
       initiatives: { orderBy: { createdAt: "desc" } },
-      releaseWindows: { orderBy: { startDate: "asc" } },
     },
   });
 
