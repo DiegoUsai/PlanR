@@ -213,7 +213,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (toCreate.length > 0) {
-    const result = await prisma.absence.createMany({ data: toCreate as never[] });
+    const result = await prisma.absence.createMany({
+      data: toCreate as never[],
+      skipDuplicates: true,
+    });
     importedCount = result.count;
   }
 

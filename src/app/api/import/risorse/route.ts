@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (toCreate.length > 0) {
-    const result = await prisma.resource.createMany({ data: toCreate as never[] });
+    const result = await prisma.resource.createMany({ data: toCreate as never[], skipDuplicates: true });
     importedCount = result.count;
   }
 
