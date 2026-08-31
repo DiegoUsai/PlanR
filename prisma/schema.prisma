@@ -101,11 +101,6 @@ enum ResourceBelonging {
   ENGINEERING_EXCELLENCE
 }
 
-enum ResourcePool {
-  MANUTENZIONE
-  EVOLUTIVA_ADEGUATIVA
-}
-
 enum LockType {
   SOFT
   HARD
@@ -271,7 +266,6 @@ model Resource {
   employeeId    String?
   type          ResourceType
   belonging     ResourceBelonging
-  pool          ResourcePool
   isPTF         Boolean           @default(false)
   attivo        Boolean           @default(true)
   joinDate      DateTime?         @db.Date
@@ -298,7 +292,6 @@ model ResourceParameter {
   dailyCost             Decimal       @db.Decimal(10, 2)
   productivityCoeff     Decimal       @db.Decimal(4, 2) @default(1.00)
   weeklyHoursBuffer     Decimal?      @db.Decimal(5, 2)
-  contractEndDate       DateTime?     @db.Date
   validFrom             DateTime      @db.Date
   validTo               DateTime?     @db.Date
   createdAt             DateTime      @default(now())

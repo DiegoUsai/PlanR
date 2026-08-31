@@ -25,11 +25,6 @@ export const RESOURCE_BELONGING_LABELS: Record<string, string> = {
   ENGINEERING_EXCELLENCE: "Engineering Excellence",
 };
 
-export const RESOURCE_POOL_LABELS: Record<string, string> = {
-  MANUTENZIONE: "Manutenzione",
-  EVOLUTIVA_ADEGUATIVA: "Evolutiva/Adeguativa",
-};
-
 export const CONTRACT_TYPE_LABELS: Record<string, string> = {
   SUBAPPALTO: "Subappalto",
   APPALTO: "Appalto",

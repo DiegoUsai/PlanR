@@ -4,12 +4,10 @@ import { createResourceSchema } from "@/lib/validators/resource";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const pool = searchParams.get("pool");
   const role = searchParams.get("role");
   const belonging = searchParams.get("belonging");
 
   const where: Record<string, unknown> = {};
-  if (pool) where.pool = pool;
   if (belonging) where.belonging = belonging;
   if (role) {
     where.parameters = {

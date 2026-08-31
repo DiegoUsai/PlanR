@@ -86,7 +86,6 @@ export async function GET() {
       role: string;
       level: string;
       type: string;
-      pool: string;
       weeks: WeekCell[];
     }
 
@@ -168,7 +167,6 @@ export async function GET() {
         role: param.role,
         level: param.level,
         type: resource.type,
-        pool: resource.pool,
         weeks: weekCells,
       });
     }

@@ -17,7 +17,6 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import {
   RESOURCE_ROLE_LABELS,
-  RESOURCE_POOL_LABELS,
 } from "@/lib/constants";
 import ResourceAllocationsDialog from "@/components/resources/ResourceAllocationsDialog";
 
@@ -72,7 +71,6 @@ interface ResourceRow {
   role: string;
   level: string;
   type: string;
-  pool: string;
   weeks: WeekCell[];
 }
 
@@ -150,7 +148,6 @@ function aggregateToMonths(
 export default function ResourcePlanPage() {
   const [data, setData] = useState<PivotData | null>(null);
   const [roleFilter, setRoleFilter] = useState("");
-  const [poolFilter, setPoolFilter] = useState("");
   const [zoom, setZoom] = useState<Zoom>("settimane");
   const [allocTarget, setAllocTarget] = useState<{ id: string; name: string } | null>(null);
   const [popover, setPopover] = useState<{
@@ -183,7 +180,6 @@ export default function ResourcePlanPage() {
 
   const filteredRows = data?.rows.filter((r) => {
     if (roleFilter && r.role !== roleFilter) return false;
-    if (poolFilter && r.pool !== poolFilter) return false;
     return true;
   }) || [];
 
@@ -200,7 +196,7 @@ export default function ResourcePlanPage() {
     }
     return map;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, zoom, filteredRows.length, roleFilter, poolFilter]);
+  }, [data, zoom, filteredRows.length, roleFilter]);
 
   if (!data) {
     return (
@@ -214,7 +210,6 @@ export default function ResourcePlanPage() {
   }
 
   const roles = [...new Set(data.rows.map((r) => r.role))];
-  const pools = [...new Set(data.rows.map((r) => r.pool))];
 
   const colWidth = zoom === "settimane" ? 60 : 80;
 
@@ -252,22 +247,6 @@ export default function ResourcePlanPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Pool</InputLabel>
-          <Select
-            value={poolFilter}
-            label="Pool"
-            onChange={(e) => setPoolFilter(e.target.value)}
-          >
-            <MenuItem value="">Tutti</MenuItem>
-            {pools.map((p) => (
-              <MenuItem key={p} value={p}>
-                {RESOURCE_POOL_LABELS[p] || p}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
         {/* Legend */}
         <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", ml: "auto" }}>
           {[

@@ -26,7 +26,6 @@ import {
   RESOURCE_LEVEL_LABELS,
   RESOURCE_TYPE_LABELS,
   RESOURCE_BELONGING_LABELS,
-  RESOURCE_POOL_LABELS,
 } from "@/lib/constants";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import ResourceAllocationsDialog from "@/components/resources/ResourceAllocationsDialog";
@@ -46,7 +45,6 @@ interface Resource {
   employeeId: string | null;
   type: string;
   belonging: string;
-  pool: string;
   isPTF: boolean;
   joinDate: string | null;
   notes: string | null;
@@ -62,7 +60,6 @@ const emptyForm = {
   level: "MID",
   type: "INTERNA" as string,
   belonging: "BU_DOCUMENTALE",
-  pool: "MANUTENZIONE",
   isPTF: false,
   joinDate: "",
   notes: "",
@@ -81,7 +78,6 @@ export default function RisorsePage() {
   const [allocTarget, setAllocTarget] = useState<Resource | null>(null);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string | null>(null);
-  const [filterPool, setFilterPool] = useState<string | null>(null);
 
   const filteredResources = useMemo(() => {
     let result = resources;
@@ -94,9 +90,8 @@ export default function RisorsePage() {
       );
     }
     if (filterRole) result = result.filter((r) => r.parameters[0]?.role === filterRole);
-    if (filterPool) result = result.filter((r) => r.pool === filterPool);
     return result;
-  }, [resources, search, filterRole, filterPool]);
+  }, [resources, search, filterRole]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -130,7 +125,6 @@ export default function RisorsePage() {
       level: p?.level || "MID",
       type: resource.type,
       belonging: resource.belonging,
-      pool: resource.pool,
       isPTF: resource.isPTF,
       joinDate: resource.joinDate?.split("T")[0] || "",
       notes: resource.notes || "",
@@ -149,7 +143,6 @@ export default function RisorsePage() {
       employeeId: rest.employeeId || undefined,
       type: rest.type,
       belonging: rest.belonging,
-      pool: rest.pool,
       isPTF: rest.isPTF,
       joinDate: rest.joinDate || undefined,
       notes: rest.notes || undefined,
@@ -272,12 +265,6 @@ export default function RisorsePage() {
         RESOURCE_BELONGING_LABELS[value] || value,
     },
     {
-      field: "pool",
-      headerName: "Pool",
-      width: 150,
-      valueFormatter: (value: string) => RESOURCE_POOL_LABELS[value] || value,
-    },
-    {
       field: "weeklyHours",
       headerName: "Ore/sett",
       width: 85,
@@ -382,17 +369,6 @@ export default function RisorsePage() {
             variant={filterRole === v ? "filled" : "outlined"}
             color={filterRole === v ? "primary" : "default"}
             onClick={() => setFilterRole(filterRole === v ? null : v)}
-          />
-        ))}
-        <Box sx={{ mx: 0.5, borderLeft: "1px solid", borderColor: "divider", height: 24 }} />
-        {Object.entries(RESOURCE_POOL_LABELS).map(([v, l]) => (
-          <Chip
-            key={v}
-            label={l}
-            size="small"
-            variant={filterPool === v ? "filled" : "outlined"}
-            color={filterPool === v ? "secondary" : "default"}
-            onClick={() => setFilterPool(filterPool === v ? null : v)}
           />
         ))}
       </Box>
@@ -504,19 +480,6 @@ export default function RisorsePage() {
               size="small"
             >
               {Object.entries(RESOURCE_BELONGING_LABELS).map(([v, l]) => (
-                <MenuItem key={v} value={v}>
-                  {l}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Pool"
-              value={form.pool}
-              onChange={(e) => updateForm("pool", e.target.value)}
-              size="small"
-            >
-              {Object.entries(RESOURCE_POOL_LABELS).map(([v, l]) => (
                 <MenuItem key={v} value={v}>
                   {l}
                 </MenuItem>

@@ -6,15 +6,12 @@ const resourceRoleEnum = z.enum([
 const resourceLevelEnum = z.enum(["JUNIOR", "MID", "SENIOR"]);
 const resourceTypeEnum = z.enum(["INTERNA", "ESTERNA"]);
 const resourceBelongingEnum = z.enum(["BU_DOCUMENTALE", "ENGINEERING_EXCELLENCE"]);
-const resourcePoolEnum = z.enum(["MANUTENZIONE", "EVOLUTIVA_ADEGUATIVA"]);
-
 export const createResourceSchema = z.object({
   firstName: z.string().min(1, "Nome obbligatorio"),
   lastName: z.string().min(1, "Cognome obbligatorio"),
   employeeId: z.string().optional(),
   type: resourceTypeEnum,
   belonging: resourceBelongingEnum,
-  pool: resourcePoolEnum,
   isPTF: z.boolean().default(false),
   attivo: z.boolean().default(true),
   joinDate: z.string().date().optional(),
@@ -31,7 +28,6 @@ export const createResourceParameterSchema = z.object({
   dailyCost: z.number().nonnegative(),
   productivityCoeff: z.number().positive().default(1.0),
   weeklyHoursBuffer: z.number().nonnegative().nullable().optional(),
-  contractEndDate: z.string().date().nullable().optional(),
   validFrom: z.string().date(),
   validTo: z.string().date().nullable().optional(),
 });

@@ -8,7 +8,6 @@ interface ResourceRow {
   nome: string;
   tipologia: string;
   appartenenza: string;
-  pool: string;
   is_ptf: string;
   note: string;
 }
@@ -20,12 +19,6 @@ const TYPE_MAP: Record<string, string> = {
 const BELONGING_MAP: Record<string, string> = {
   "BU Documentale": "BU_DOCUMENTALE", "Engineering Excellence": "ENGINEERING_EXCELLENCE",
   BU_DOCUMENTALE: "BU_DOCUMENTALE", ENGINEERING_EXCELLENCE: "ENGINEERING_EXCELLENCE",
-};
-
-const POOL_MAP: Record<string, string> = {
-  Manutenzione: "MANUTENZIONE", Evolutiva: "EVOLUTIVA_ADEGUATIVA",
-  "Evolutiva/Adeguativa": "EVOLUTIVA_ADEGUATIVA",
-  MANUTENZIONE: "MANUTENZIONE", EVOLUTIVA_ADEGUATIVA: "EVOLUTIVA_ADEGUATIVA",
 };
 
 export async function POST(request: NextRequest) {
@@ -78,12 +71,6 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const pool = POOL_MAP[row.pool?.trim()];
-    if (!pool) {
-      rowErrors.push({ row: rowNum, field: "pool", message: `Pool non valido: "${row.pool}"` });
-      continue;
-    }
-
     const isPTF = row.is_ptf?.trim().toLowerCase() === "true" || row.is_ptf?.trim() === "1";
     const employeeId = row.id_dipendente?.trim() || null;
 
@@ -107,7 +94,6 @@ export async function POST(request: NextRequest) {
           employeeId: employeeId || existing.employeeId,
           type: type as never,
           belonging: belonging as never,
-          pool: pool as never,
           isPTF: isPTF,
           notes: row.note?.trim() || existing.notes,
         },
@@ -121,7 +107,6 @@ export async function POST(request: NextRequest) {
           employeeId,
           type: type as never,
           belonging: belonging as never,
-          pool: pool as never,
           isPTF: isPTF,
           notes: row.note?.trim() || null,
         },

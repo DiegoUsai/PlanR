@@ -154,13 +154,13 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
       }
     }
 
-    // Prossimita scadenza contratto
-    if (currentParam.contractEndDate) {
-      const contractEnd = new Date(currentParam.contractEndDate);
+    // Prossimita scadenza parametro (validTo)
+    if (currentParam.validTo) {
+      const paramEnd = new Date(currentParam.validTo);
       const thirtyDays = new Date(today);
       thirtyDays.setDate(thirtyDays.getDate() + 30);
 
-      if (contractEnd <= thirtyDays && contractEnd >= today) {
+      if (paramEnd <= thirtyDays && paramEnd >= today) {
         const activeAllocs = resource.allocations.filter(
           (a) => new Date(a.endDate) >= today
         );
@@ -170,7 +170,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
             severity: "OPERATIVO",
             entityType: "Resource",
             entityId: resource.id,
-            message: `${resource.lastName} ${resource.firstName}: contratto scade il ${contractEnd.toLocaleDateString("it-IT")} con ${activeAllocs.length} allocazione/i attive`,
+            message: `${resource.lastName} ${resource.firstName}: parametri scadono il ${paramEnd.toLocaleDateString("it-IT")} con ${activeAllocs.length} allocazione/i attive`,
           });
         }
       }

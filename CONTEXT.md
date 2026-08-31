@@ -86,9 +86,8 @@ Persona della BU. Identificata da cognome + nome (campi separati: `lastName`, `f
 | id_dipendente | Codice identificativo nel sistema HR (facoltativo) |
 | tipologia | Interna o Esterna (consulenti/fornitori) — distinzione per analisi costi e mix |
 | appartenenza | BU Documentale o Engineering Excellence (sezione 9 Draft) |
-| pool | **Manutenzione** (allocate su manutenzione con percentuale configurabile) o **Evolutiva/Adeguativa** (allocate dinamicamente) |
 | is_ptf | Membro del Presidio Tecnico Funzionale — ha impegni strutturali (sessioni, review) che riducono la capacita allocabile |
-| attivo | Se la risorsa e attualmente attiva nella BU. Auto-calcolato da data_fine_contratto del Parametro risorsa; forzabile manualmente. Risorse non attive non compaiono nelle viste operative ma restano nello storico |
+| attivo | Se la risorsa e attualmente attiva nella BU. Auto-calcolato da data_fine_validita del Parametro risorsa corrente; forzabile manualmente. Risorse non attive non compaiono nelle viste operative ma restano nello storico |
 
 **Risorse di manutenzione:** allocate con una **percentuale configurabile** (non necessariamente 100%), visualizzata come blocco fisso nella pivot. La capacita residua e disponibile per evolutiva.
 
@@ -108,7 +107,7 @@ Storico temporalizzato degli attributi variabili di una risorsa. Un cambio crea 
 | costo_giornata | Costo giornaliero in euro nel periodo |
 | coefficiente_produttivita | Fattore rispetto al baseline mid-level (default 1.0). Junior: 1.3, Senior: 0.85. Impatta la pianificazione temporale, non il costo |
 | buffer_ore_settimanali | Override del buffer globale BU per questa risorsa. Se null, si usa il default dalla Configurazione BU |
-| data_fine_contratto | Data fine contratto della risorsa. Quando superata, il flag `attivo` sulla Risorsa passa a false. L'app genera alert se allocazioni superano questa data |
+| data_fine_validita (validTo) | Data fine validita del parametro. Quando tutti i parametri sono scaduti, il flag `attivo` sulla Risorsa passa a false. L'app genera alert se allocazioni superano questa data |
 
 **Regola di non retroattivita:** un nuovo parametro con data odierna o futura chiude automaticamente il record precedente. I calcoli storici restano invariati.
 
@@ -282,15 +281,6 @@ Orizzonti medio e lungo rimandati a fase successiva.
 
 ---
 
-## I due pool di risorse
-
-- **Pool Manutenzione:** risorse allocate su manutenzione con **percentuale configurabile** (tipicamente 100%, ma puo essere inferiore). La percentuale di allocazione sulla manutenzione e visualizzata come blocco fisso nella pivot; la capacita residua e disponibile per allocazioni di evolutiva/adeguativa.
-- **Pool Evolutiva/Adeguativa:** allocate dinamicamente per richiesta tramite il processo di demand.
-
-Il cambio di pool e un'operazione esplicita del D&R Manager, tracciata nel log.
-
----
-
 ## Profilo di competenza (vista calcolata)
 
 Non e un'entita persistente. E' un aggregato derivato in tempo reale dallo storico delle allocazioni completate. **Post-pilota.**
@@ -308,7 +298,7 @@ Non e un'entita persistente. E' un aggregato derivato in tempo reale dallo stori
 | Scadenza soft lock | Data scadenza soft lock su allocazione superata |
 | Ready - Pending Resources | Iniziativa in questo stato da > 2 settimane |
 | Iniziativa senza allocazioni | Nell'orizzonte corto senza allocazioni nominative |
-| Prossimita scadenza contratto | Allocazione negli ultimi 30 giorni del contratto |
+| Prossimita scadenza parametri | Parametro risorsa scade entro 30 giorni con allocazioni attive |
 | Slittamento per coefficiente | Effort effettivo fa superare la data consegna desiderata |
 | Costo > valore economico | Costo previsto supera il valore economico stimato |
 

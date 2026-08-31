@@ -58,6 +58,12 @@ Thumbs.db
 # claude code memory and context
 CLAUDE.md
 CONTEXT.md
+PRODUCT.md
+DESIGN.md
+UI.md
+
+# impeccable design tooling
+.impeccable/
 
 # functional specs
 docs/spec.md

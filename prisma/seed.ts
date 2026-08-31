@@ -116,14 +116,14 @@ async function main() {
     prisma.resource.create({
       data: {
         lastName: "Rossi", firstName: "Marco", employeeId: "EMP-001",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: true, attivo: true, joinDate: new Date("2020-03-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Bianchi", firstName: "Laura", employeeId: "EMP-002",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2019-06-01"),
         managedApps: { connect: [{ id: sibarDoc.id }, { id: protocollo.id }] },
       },
@@ -131,56 +131,56 @@ async function main() {
     prisma.resource.create({
       data: {
         lastName: "Verdi", firstName: "Andrea", employeeId: "EMP-003",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2022-01-15"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Neri", firstName: "Sara", employeeId: "EMP-004",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2025-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Colombo", firstName: "Luca", employeeId: "EMP-005",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: true, attivo: true, joinDate: new Date("2018-04-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Ferrari", firstName: "Elena", employeeId: "EMP-006",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2023-02-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Russo", firstName: "Paolo", employeeId: "EMP-007",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: true, attivo: true, joinDate: new Date("2017-09-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Galli", firstName: "Chiara", employeeId: "EMP-008",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2021-05-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Moretti", firstName: "Davide", employeeId: "EMP-009",
-        type: "INTERNA", belonging: "ENGINEERING_EXCELLENCE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "INTERNA", belonging: "ENGINEERING_EXCELLENCE",
         isPTF: false, attivo: true, joinDate: new Date("2016-01-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Conti", firstName: "Alessia",
-        type: "ESTERNA", belonging: "BU_DOCUMENTALE", pool: "EVOLUTIVA_ADEGUATIVA",
+        type: "ESTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2026-01-15"),
         notes: "Consulente XYZ Solutions",
       },
@@ -188,14 +188,14 @@ async function main() {
     prisma.resource.create({
       data: {
         lastName: "Ricci", firstName: "Matteo", employeeId: "EMP-010",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2021-11-01"),
       },
     }),
     prisma.resource.create({
       data: {
         lastName: "Lombardi", firstName: "Anna", employeeId: "EMP-011",
-        type: "INTERNA", belonging: "BU_DOCUMENTALE", pool: "MANUTENZIONE",
+        type: "INTERNA", belonging: "BU_DOCUMENTALE",
         isPTF: false, attivo: true, joinDate: new Date("2024-03-01"),
       },
     }),
@@ -234,7 +234,6 @@ async function main() {
         dailyCost: isExternal ? 350 : isJunior ? 180 : isSenior ? 300 : 240,
         productivityCoeff: isJunior ? 1.3 : isSenior ? 0.85 : 1.0,
         weeklyHoursBuffer: r.isPTF ? 16 : null,
-        contractEndDate: isExternal ? new Date("2027-06-30") : null,
         validFrom: new Date("2026-01-01"),
         validTo: null,
       },

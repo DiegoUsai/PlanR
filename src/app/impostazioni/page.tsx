@@ -482,7 +482,13 @@ function ImportTab() {
         title="Risorse"
         description="Carica l'anagrafica risorse. Match per id_dipendente o cognome+nome: le esistenti vengono aggiornate."
         endpoint="/api/import/risorse"
-        csvFormat={`id_dipendente;cognome;nome;tipologia;appartenenza;pool;is_ptf;note\nHR001;Rossi;Mario;Interna;BU Documentale;Evolutiva;false;`}
+        csvFormat={`id_dipendente;cognome;nome;tipologia;appartenenza;is_ptf;note\nHR001;Rossi;Mario;Interna;BU Documentale;false;`}
+      />
+      <ImportSection
+        title="Parametri Risorsa"
+        description="Carica parametri economici e profilo. Match per id_dipendente: chiude il parametro corrente e ne crea uno nuovo."
+        endpoint="/api/import/parametri"
+        csvFormat={`id_dipendente;ruolo;livello;ore_settimanali;costo_giornata;coefficiente_produttivita;buffer_ore_settimanali;data_inizio_validita\nEMP-001;FE;Senior;40;300;0.85;;2026-09-01`}
       />
       <ImportSection
         title="Assenze (Factorial)"
