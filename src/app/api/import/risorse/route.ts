@@ -4,12 +4,14 @@ import Papa from "papaparse";
 
 interface ResourceRow {
   nominativo: string;
+  id_dipendente: string;
   ruolo: string;
   livello: string;
   tipologia: string;
   appartenenza: string;
   pool: string;
   is_ptf: string;
+  data_ingresso_bu: string;
   note: string;
 }
 
@@ -111,6 +113,11 @@ export async function POST(request: NextRequest) {
     }
 
     const isPTF = row.is_ptf?.trim().toLowerCase() === "true" || row.is_ptf?.trim() === "1";
+    const employeeId = row.id_dipendente?.trim() || null;
+    const joinDate = row.data_ingresso_bu?.trim();
+    const parsedJoinDate = joinDate && /^\d{4}-\d{2}-\d{2}$/.test(joinDate)
+      ? new Date(joinDate)
+      : null;
 
     const existing = await prisma.resource.findFirst({
       where: { lastName, firstName },
@@ -120,12 +127,14 @@ export async function POST(request: NextRequest) {
       await prisma.resource.update({
         where: { id: existing.id },
         data: {
+          employeeId: employeeId || existing.employeeId,
           role: role as never,
           level: level as never,
           type: type as never,
           belonging: belonging as never,
           pool: pool as never,
           isPTF: isPTF,
+          joinDate: parsedJoinDate || existing.joinDate,
           notes: row.note?.trim() || existing.notes,
         },
       });
@@ -135,12 +144,14 @@ export async function POST(request: NextRequest) {
         data: {
           lastName,
           firstName,
+          employeeId,
           role: role as never,
           level: level as never,
           type: type as never,
           belonging: belonging as never,
           pool: pool as never,
           isPTF: isPTF,
+          joinDate: parsedJoinDate,
           notes: row.note?.trim() || null,
         },
       });

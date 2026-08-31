@@ -482,13 +482,13 @@ function ImportTab() {
         title="Risorse"
         description="Carica l'anagrafica risorse. Match per nominativo: le esistenti vengono aggiornate."
         endpoint="/api/import/risorse"
-        csvFormat={`nominativo;ruolo;livello;tipologia;appartenenza;pool;is_ptf;note\nRossi Mario;BE;Mid;Interna;BU Documentale;Evolutiva;false;`}
+        csvFormat={`nominativo;id_dipendente;ruolo;livello;tipologia;appartenenza;pool;is_ptf;data_ingresso_bu;note\nRossi Mario;12345;BE;Mid;Interna;BU Documentale;Evolutiva;false;2024-01-15;`}
       />
       <ImportSection
         title="Assenze (Factorial)"
         description="Carica assenze pianificate da Factorial. Deduplicazione per risorsa + data."
         endpoint="/api/import/assenze"
-        csvFormat={`nominativo;giorno;ore_assenza\nRossi Mario;2026-09-01;8`}
+        csvFormat={`nominativo;giorno;ore_assenza;tipo_assenza;note\nRossi Mario;2026-09-01;8;Ferie;`}
       />
     </Box>
   );

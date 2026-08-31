@@ -6,7 +6,16 @@ interface AbsenceRow {
   nominativo: string;
   giorno: string;
   ore_assenza: string;
+  tipo_assenza: string;
+  note: string;
 }
+
+const ABSENCE_TYPE_MAP: Record<string, string> = {
+  Ferie: "FERIE", FERIE: "FERIE",
+  Malattia: "MALATTIA", MALATTIA: "MALATTIA",
+  Permesso: "PERMESSO", PERMESSO: "PERMESSO",
+  Altro: "ALTRO", ALTRO: "ALTRO",
+};
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
@@ -76,6 +85,8 @@ export async function POST(request: NextRequest) {
     }
 
     const absenceDate = new Date(dateStr);
+    const absenceType = ABSENCE_TYPE_MAP[row.tipo_assenza?.trim()] || "FERIE";
+    const absenceNotes = row.note?.trim() || null;
 
     const existing = await prisma.absence.findUnique({
       where: { resourceId_startDate: { resourceId, startDate: absenceDate } },
@@ -84,7 +95,12 @@ export async function POST(request: NextRequest) {
     if (existing) {
       await prisma.absence.update({
         where: { id: existing.id },
-        data: { hours, endDate: absenceDate },
+        data: {
+          hours,
+          endDate: absenceDate,
+          type: absenceType as never,
+          notes: absenceNotes || existing.notes,
+        },
       });
       updatedCount++;
     } else {
@@ -93,8 +109,9 @@ export async function POST(request: NextRequest) {
           resourceId,
           startDate: absenceDate,
           endDate: absenceDate,
-          type: "FERIE",
+          type: absenceType as never,
           hours,
+          notes: absenceNotes,
         },
       });
       importedCount++;
