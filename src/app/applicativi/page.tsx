@@ -21,8 +21,8 @@ interface Application {
   id: string;
   name: string;
   description: string | null;
-  contracts: Array<{ id: string; identifier: string }>;
-  assignedPMs: Array<{ id: string; name: string }>;
+  contracts: Array<{ id: string; identifier: string; notes: string | null }>;
+  assignedPMs: Array<{ id: string; firstName: string; lastName: string }>;
   modules: Array<{ id: string; name: string }>;
   _count: { initiatives: number };
 }
@@ -30,6 +30,7 @@ interface Application {
 interface ContractOption {
   id: string;
   identifier: string;
+  notes: string | null;
 }
 interface ResourceOption {
   id: string;
@@ -154,14 +155,18 @@ export default function ApplicativiPage() {
       headerName: "Contratti",
       width: 200,
       valueGetter: (_v: unknown, row: Application) =>
-        row.contracts.map((c) => c.identifier).join(", ") || "-",
+        row.contracts
+          .map((c) => (c.notes ? `${c.identifier} — ${c.notes}` : c.identifier))
+          .join(", ") || "-",
     },
     {
       field: "pmNames",
       headerName: "PM",
       width: 150,
       valueGetter: (_v: unknown, row: Application) =>
-        row.assignedPMs.map((p) => p.name).join(", ") || "-",
+        row.assignedPMs
+          .map((p) => `${p.lastName} ${p.firstName}`)
+          .join(", ") || "-",
     },
     {
       field: "initiativeCount",
@@ -283,7 +288,11 @@ export default function ApplicativiPage() {
             <Autocomplete
               multiple
               options={contracts}
-              getOptionLabel={(opt) => opt.identifier}
+              getOptionLabel={(opt) =>
+                opt.notes
+                  ? `${opt.identifier} — ${opt.notes}`
+                  : opt.identifier
+              }
               value={contracts.filter((c) =>
                 form.contractIds.includes(c.id),
               )}
