@@ -58,7 +58,7 @@ export default function ApplicativiPage() {
     const [appsRes, contractsRes, pmsRes] = await Promise.all([
       fetch("/api/applications"),
       fetch("/api/contracts"),
-      fetch("/api/resources?role=PM"),
+      fetch("/api/resources?role=PROJECT_MANAGER"),
     ]);
     setApps(await appsRes.json());
     setContracts(await contractsRes.json());

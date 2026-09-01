@@ -9,9 +9,14 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (belonging) where.belonging = belonging;
+  const now = new Date();
   if (role) {
     where.parameters = {
-      some: { role, validTo: null },
+      some: {
+        role,
+        validFrom: { lte: now },
+        OR: [{ validTo: null }, { validTo: { gte: now } }],
+      },
     };
   }
 
@@ -19,7 +24,11 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       parameters: {
-        where: { validTo: null },
+        where: {
+          validFrom: { lte: now },
+          OR: [{ validTo: null }, { validTo: { gte: now } }],
+        },
+        orderBy: { validFrom: "desc" },
         take: 1,
       },
       _count: { select: { allocations: true } },
