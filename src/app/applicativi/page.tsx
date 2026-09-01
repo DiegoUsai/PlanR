@@ -62,7 +62,13 @@ export default function ApplicativiPage() {
     ]);
     setApps(await appsRes.json());
     setContracts(await contractsRes.json());
-    setPms(await pmsRes.json());
+    const rawPms = await pmsRes.json();
+    setPms(
+      rawPms.map((r: { id: string; firstName: string; lastName: string }) => ({
+        id: r.id,
+        name: `${r.lastName} ${r.firstName}`,
+      }))
+    );
     setLoading(false);
   }, []);
 
