@@ -204,18 +204,18 @@ async function main() {
 
   // Resource Parameters (role + level are temporalized here)
   const resourceParams: { role: string; level: string }[] = [
-    { role: "TECH_LEAD", level: "SENIOR" },   // Rossi Marco
-    { role: "PM", level: "SENIOR" },           // Bianchi Laura
-    { role: "FE", level: "MID" },              // Verdi Andrea
-    { role: "FE", level: "JUNIOR" },           // Neri Sara
-    { role: "BE", level: "SENIOR" },           // Colombo Luca
-    { role: "BE", level: "MID" },              // Ferrari Elena
-    { role: "ANALISTA", level: "SENIOR" },     // Russo Paolo
-    { role: "BA_SENIOR", level: "SENIOR" },    // Galli Chiara
-    { role: "ARCHITETTO", level: "SENIOR" },   // Moretti Davide
-    { role: "FE", level: "MID" },              // Conti Alessia
-    { role: "BE", level: "MID" },              // Ricci Matteo
-    { role: "ANALISTA", level: "MID" },        // Lombardi Anna
+    { role: "TECH_LEADER", level: "SENIOR" },          // Rossi Marco
+    { role: "PROJECT_MANAGER", level: "SENIOR" },      // Bianchi Laura
+    { role: "DEVELOPER", level: "MID" },               // Verdi Andrea
+    { role: "DEVELOPER", level: "JUNIOR" },            // Neri Sara
+    { role: "SENIOR_DEV", level: "SENIOR" },           // Colombo Luca
+    { role: "DEVELOPER", level: "MID" },               // Ferrari Elena
+    { role: "ANALISTA_FUNZIONALE", level: "SENIOR" },  // Russo Paolo
+    { role: "ANALISTA_HD1", level: "SENIOR" },         // Galli Chiara
+    { role: "ARCHITECT", level: "SENIOR" },            // Moretti Davide
+    { role: "UI_UX", level: "MID" },                   // Conti Alessia
+    { role: "DEVOPS", level: "MID" },                  // Ricci Matteo
+    { role: "ANALISTA_HD2", level: "MID" },            // Lombardi Anna
   ];
 
   for (let i = 0; i < resources.length; i++) {
@@ -356,7 +356,7 @@ async function main() {
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-11-15"),
         allocatedEffortDays: 20,
-        roleInInitiative: "FE",
+        roleInInitiative: "SENIOR_DEV",
       },
     }),
     prisma.allocation.create({
@@ -368,7 +368,7 @@ async function main() {
         startDate: new Date("2026-09-15"),
         endDate: new Date("2026-11-15"),
         allocatedEffortDays: 12,
-        roleInInitiative: "FE",
+        roleInInitiative: "DEVELOPER",
         affiancamento: true,
         isSeniorAffiancamento: false,
       },
@@ -382,7 +382,7 @@ async function main() {
         startDate: new Date("2026-09-15"),
         endDate: new Date("2026-10-15"),
         allocatedEffortDays: 3,
-        roleInInitiative: "FE",
+        roleInInitiative: "SENIOR_DEV",
         affiancamento: true,
         isSeniorAffiancamento: true,
         notes: "Affiancamento senior per Neri su firma massiva",
@@ -397,7 +397,7 @@ async function main() {
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-11-15"),
         allocatedEffortDays: 18,
-        roleInInitiative: "BE",
+        roleInInitiative: "DEVELOPER",
       },
     }),
     prisma.allocation.create({
@@ -409,7 +409,7 @@ async function main() {
         startDate: new Date("2026-09-01"),
         endDate: new Date("2026-10-15"),
         allocatedEffortDays: 8,
-        roleInInitiative: "ANALISTA",
+        roleInInitiative: "ANALISTA_FUNZIONALE",
       },
     }),
     prisma.allocation.create({
@@ -421,7 +421,7 @@ async function main() {
         startDate: new Date("2026-08-18"),
         endDate: new Date("2026-10-31"),
         allocatedEffortDays: 20,
-        roleInInitiative: "BE",
+        roleInInitiative: "DEVELOPER",
       },
     }),
     prisma.allocation.create({
@@ -433,7 +433,7 @@ async function main() {
         startDate: new Date("2026-08-18"),
         endDate: new Date("2026-09-30"),
         allocatedEffortDays: 10,
-        roleInInitiative: "ANALISTA",
+        roleInInitiative: "ANALISTA_FUNZIONALE",
       },
     }),
     prisma.allocation.create({
@@ -446,7 +446,7 @@ async function main() {
         startDate: new Date("2026-11-01"),
         endDate: new Date("2027-02-28"),
         allocatedEffortDays: 15,
-        roleInInitiative: "FE",
+        roleInInitiative: "SENIOR_DEV",
       },
     }),
     prisma.allocation.create({
@@ -459,7 +459,7 @@ async function main() {
         startDate: new Date("2026-11-15"),
         endDate: new Date("2027-03-15"),
         allocatedEffortDays: 20,
-        roleInInitiative: "BE",
+        roleInInitiative: "DEVELOPER",
       },
     }),
   ]);

@@ -46,6 +46,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         data: {
           ...data,
           resourceId: id,
+          validTo: validTo ? new Date(validTo) : null,
         },
       });
       return NextResponse.json(parameter);

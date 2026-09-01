@@ -1,12 +1,17 @@
 export const RESOURCE_ROLE_LABELS: Record<string, string> = {
-  FE: "Frontend",
-  BE: "Backend",
-  ANALISTA: "Analista",
-  TECH_LEAD: "Tech Lead",
-  ARCHITETTO: "Architetto",
-  PM: "Project Manager",
-  BA_SENIOR: "BA Senior",
-  ALTRO: "Altro",
+  ANALISTA_FUNZIONALE: "Analista Funzionale",
+  ANALISTA_HD1: "Analista HD1",
+  SAP_HD1: "SAP HD1",
+  TECH_LEADER: "Tech Leader",
+  ANALISTA_HD2: "Analista HD2",
+  SENIOR_DEV: "Senior Dev",
+  DEVELOPER: "Developer",
+  SAP_CONSULTANT: "SAP Consultant",
+  RESP_BU: "Resp. BU",
+  UI_UX: "UI/UX",
+  DEVOPS: "DevOps",
+  PROJECT_MANAGER: "Project Manager",
+  ARCHITECT: "Architect",
 };
 
 export const RESOURCE_LEVEL_LABELS: Record<string, string> = {

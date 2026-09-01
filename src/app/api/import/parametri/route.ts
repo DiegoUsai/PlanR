@@ -11,17 +11,23 @@ interface ParametriRow {
   coefficiente_produttivita: string;
   buffer_ore_settimanali: string;
   data_inizio_validita: string;
+  data_fine_validita: string;
 }
 
 const ROLE_MAP: Record<string, string> = {
-  FE: "FE", Frontend: "FE",
-  BE: "BE", Backend: "BE",
-  Analista: "ANALISTA", ANALISTA: "ANALISTA",
-  "Tech Lead": "TECH_LEAD", TECH_LEAD: "TECH_LEAD",
-  Architetto: "ARCHITETTO", ARCHITETTO: "ARCHITETTO",
-  PM: "PM", "Project Manager": "PM",
-  "BA Senior": "BA_SENIOR", BA_SENIOR: "BA_SENIOR",
-  Altro: "ALTRO", ALTRO: "ALTRO",
+  "Analista Funzionale": "ANALISTA_FUNZIONALE", ANALISTA_FUNZIONALE: "ANALISTA_FUNZIONALE",
+  "Analista HD1": "ANALISTA_HD1", ANALISTA_HD1: "ANALISTA_HD1",
+  "SAP HD1": "SAP_HD1", SAP_HD1: "SAP_HD1",
+  "Tech Leader": "TECH_LEADER", TECH_LEADER: "TECH_LEADER",
+  "Analista HD2": "ANALISTA_HD2", ANALISTA_HD2: "ANALISTA_HD2",
+  "Senior Dev": "SENIOR_DEV", SENIOR_DEV: "SENIOR_DEV",
+  Developer: "DEVELOPER", DEVELOPER: "DEVELOPER",
+  "SAP Consultant": "SAP_CONSULTANT", SAP_CONSULTANT: "SAP_CONSULTANT",
+  "Resp. BU": "RESP_BU", RESP_BU: "RESP_BU",
+  "UI/UX": "UI_UX", UI_UX: "UI_UX",
+  DevOps: "DEVOPS", DEVOPS: "DEVOPS",
+  "Project Manager": "PROJECT_MANAGER", PROJECT_MANAGER: "PROJECT_MANAGER",
+  Architect: "ARCHITECT", ARCHITECT: "ARCHITECT",
 };
 
 const LEVEL_MAP: Record<string, string> = {
@@ -66,6 +72,7 @@ export async function POST(request: NextRequest) {
     productivityCoeff: number;
     weeklyHoursBuffer: number | null;
     validFrom: Date;
+    validTo: Date | null;
   }
   const validRows: ValidRow[] = [];
 
@@ -109,6 +116,16 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    const validToStr = row.data_fine_validita?.trim();
+    let validTo: Date | null = null;
+    if (validToStr) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(validToStr)) {
+        rowErrors.push({ row: rowNum, field: "data_fine_validita", message: "Formato data fine non valido (YYYY-MM-DD)" });
+        continue;
+      }
+      validTo = new Date(validToStr);
+    }
+
     validRows.push({
       rowNum,
       employeeId,
@@ -121,6 +138,7 @@ export async function POST(request: NextRequest) {
         ? Number(row.buffer_ore_settimanali.trim())
         : null,
       validFrom: new Date(validFromStr),
+      validTo,
     });
   }
 
@@ -144,6 +162,7 @@ export async function POST(request: NextRequest) {
     productivityCoeff: number;
     weeklyHoursBuffer: number | null;
     validFrom: Date;
+    validTo: Date | null;
   }
   const resolvedRows: ResolvedRow[] = [];
   const resourceIds = new Set<string>();
@@ -164,6 +183,7 @@ export async function POST(request: NextRequest) {
       productivityCoeff: row.productivityCoeff,
       weeklyHoursBuffer: row.weeklyHoursBuffer,
       validFrom: row.validFrom,
+      validTo: row.validTo,
     });
   }
 
@@ -197,7 +217,7 @@ export async function POST(request: NextRequest) {
     productivityCoeff: number;
     weeklyHoursBuffer: number | null;
     validFrom: Date;
-    validTo: null;
+    validTo: Date | null;
   }> = [];
 
   for (const row of resolvedRows) {
@@ -223,7 +243,7 @@ export async function POST(request: NextRequest) {
       productivityCoeff: row.productivityCoeff,
       weeklyHoursBuffer: row.weeklyHoursBuffer,
       validFrom: row.validFrom,
-      validTo: null,
+      validTo: row.validTo,
     });
   }
 

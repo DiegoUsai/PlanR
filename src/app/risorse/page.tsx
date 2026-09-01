@@ -73,6 +73,7 @@ const emptyForm = {
   productivityCoeff: "1",
   weeklyHoursBuffer: "",
   validFrom: todayStr(),
+  validTo: "",
 };
 
 export default function RisorsePage() {
@@ -140,12 +141,13 @@ export default function RisorsePage() {
       productivityCoeff: p?.productivityCoeff || "1",
       weeklyHoursBuffer: p?.weeklyHoursBuffer || "",
       validFrom: p?.validFrom?.split("T")[0] || todayStr(),
+      validTo: p?.validTo?.split("T")[0] || "",
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    const { weeklyHours, dailyCost, productivityCoeff, role, level, weeklyHoursBuffer, validFrom, ...rest } = form;
+    const { weeklyHours, dailyCost, productivityCoeff, role, level, weeklyHoursBuffer, validFrom, validTo, ...rest } = form;
     const resourceData = {
       firstName: rest.firstName,
       lastName: rest.lastName,
@@ -165,6 +167,7 @@ export default function RisorsePage() {
       productivityCoeff: Number(productivityCoeff) || 1,
       weeklyHoursBuffer: weeklyHoursBuffer ? Number(weeklyHoursBuffer) : null,
       validFrom: validFrom || todayStr(),
+      validTo: validTo || null,
     };
 
     try {
@@ -187,7 +190,8 @@ export default function RisorsePage() {
           String(dailyCost) !== String(p?.dailyCost) ||
           String(productivityCoeff) !== String(p?.productivityCoeff) ||
           String(weeklyHoursBuffer || "") !== String(p?.weeklyHoursBuffer || "") ||
-          validFrom !== (p?.validFrom?.split("T")[0] || "");
+          validFrom !== (p?.validFrom?.split("T")[0] || "") ||
+          (validTo || "") !== (p?.validTo?.split("T")[0] || "");
         if (paramChanged) {
           const pRes = await fetch(`/api/resources/${editing.id}/parameters`, {
             method: "POST",
@@ -576,6 +580,15 @@ export default function RisorsePage() {
               size="small"
               required
               slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Validita al"
+              type="date"
+              value={form.validTo}
+              onChange={(e) => updateForm("validTo", e.target.value)}
+              size="small"
+              slotProps={{ inputLabel: { shrink: true } }}
+              helperText="Vuoto = a tempo indeterminato"
             />
 
             <TextField

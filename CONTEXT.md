@@ -67,7 +67,7 @@ Intervento (MEV o MAD) su un applicativo nel perimetro di un contratto. Corrispo
 | taglia_sizing | XS/S/M/L/XL — importata da Jira (sezione 6.1 Draft) |
 | polarita | Prima meta / Seconda meta — impatta il buffer di stima (sezione 6.2 Draft) |
 | stima_gg | Stima complessiva in giorni/uomo (sviluppo + analisi/test) |
-| figure_necessarie | Fabbisogno generico ("2 FE, 1 BE, 1 Analista") — campo testuale |
+| figure_necessarie | Fabbisogno generico (es. "2 Senior Dev, 1 Analista Funzionale, 1 Tech Leader") — campo testuale |
 | valore_economico | Fascia di valore stimato (<5K, 5-10K, ... >40K) — importato da Jira |
 | data_fine_desiderata | Data di consegna indicata dal PM nell'epica Jira |
 | data_inizio_pianificata | Calcolata: data_fine_desiderata - effort_pianificato (con buffer per taglia) |
@@ -101,7 +101,7 @@ Storico temporalizzato degli attributi variabili di una risorsa. Un cambio crea 
 
 | Campo | Significato |
 |---|---|
-| ruolo | FE, BE, Analista, Tech Lead, Architetto, PM, BA Senior, Altro. Temporalizzato — una promozione crea un nuovo record |
+| ruolo | Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect. Temporalizzato — una promozione crea un nuovo record |
 | livello | Junior, Mid, Senior. Temporalizzato — un avanzamento crea un nuovo record |
 | ore_settimanali | Ore teoriche settimanali nel periodo di validita |
 | costo_giornata | Costo giornaliero in euro nel periodo |
@@ -123,7 +123,7 @@ Assegnazione di una Risorsa a un'Iniziativa per un periodo e una percentuale di 
 | soft_lock_scadenza | Data scadenza del soft lock. Obbligatoria se tipo_lock = Soft. Alla scadenza l'app genera alert. Ogni allocazione ha la propria scadenza indipendente |
 | percentuale_allocazione | 1-100%, quota di tempo della risorsa su questa iniziativa |
 | effort_allocato_gg | Giorni/uomo allocati. Auto-calcolato se non specificato: `giorniLavorativi(inizio, fine) x percentuale / 100` (solo lun-ven) |
-| ruolo_nell_iniziativa | Ruolo specifico in questa iniziativa (stessa enum del ruolo Risorsa: FE, BE, Analista, Tech Lead, Architetto, PM, BA Senior, Altro) |
+| ruolo_nell_iniziativa | Ruolo specifico in questa iniziativa (stessa enum del ruolo Risorsa: Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect) |
 | affiancamento | Se true, questa allocazione e una leva di crescita (sezione 8.2 Draft) |
 | is_senior_affiancamento | Se true e affiancamento = true, questa e l'allocazione del senior che affianca |
 

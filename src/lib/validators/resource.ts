@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 const resourceRoleEnum = z.enum([
-  "FE", "BE", "ANALISTA", "TECH_LEAD", "ARCHITETTO", "PM", "BA_SENIOR", "ALTRO",
+  "ANALISTA_FUNZIONALE", "ANALISTA_HD1", "SAP_HD1", "TECH_LEADER", "ANALISTA_HD2",
+  "SENIOR_DEV", "DEVELOPER", "SAP_CONSULTANT", "RESP_BU", "UI_UX", "DEVOPS",
+  "PROJECT_MANAGER", "ARCHITECT",
 ]);
 const resourceLevelEnum = z.enum(["JUNIOR", "MID", "SENIOR"]);
 const resourceTypeEnum = z.enum(["INTERNA", "ESTERNA"]);

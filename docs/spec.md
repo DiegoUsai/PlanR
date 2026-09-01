@@ -57,7 +57,7 @@ L'applicazione legge dati da **Jira** per alimentare il Resource Plan (epiche cl
 
 ## 2. Utenti e permessi
 
-L'applicazione ha due profili utente con viste e permessi distinti.
+L'applicazione ha due profili utente con viste e permessi distinti. Entrambi i profili possono effettuare il **logout** dall'applicazione tramite un'opzione nella barra di navigazione (icona utente o menu profilo).
 
 ### 2.1 Demand & Resource Manager
 
@@ -401,6 +401,26 @@ Fotografia dei dati aggregati per alimentare i grafici di trend nelle dashboard.
 | **risorse_per_fascia** | JSON | Distribuzione risorse per fascia di saturazione |
 | **pipeline_value_soft_lock** | Decimale | Valore totale in soft lock alla data |
 | **richieste_pending_resources** | Intero | Numero di iniziative in stato "Ready — Pending Resources" |
+
+#### Audit log
+
+Registro di tutte le operazioni di modifica effettuate nell'applicazione. Ogni azione che crea, modifica o cancella un'entità genera automaticamente un record di audit. L'audit log è consultabile dalla sezione **Impostazioni** (sezione 11.2).
+
+| Campo | Tipo | Note |
+| :---- | :---- | :---- |
+| **id** | UUID | Identificativo univoco |
+| **timestamp** | Datetime | Data e ora dell'operazione |
+| **utente** | Stringa | Email dell'utente che ha eseguito l'operazione (dall'autenticazione Google) |
+| **azione** | Enum | Creazione, Modifica, Cancellazione, Import |
+| **entita** | Stringa | Nome dell'entità coinvolta (es. "Risorsa", "Allocazione", "Parametro risorsa") |
+| **id_entita** | UUID | Identificativo del record coinvolto |
+| **descrizione_entita** | Stringa | Descrizione leggibile del record (es. "Rossi Mario", "Iniziativa AIC-2234") per facilitare la consultazione senza dover risalire al record originale |
+| **valore_pre** | JSON (nullable) | Stato dei campi prima della modifica (null per le operazioni di creazione) |
+| **valore_post** | JSON (nullable) | Stato dei campi dopo la modifica (null per le operazioni di cancellazione) |
+
+> **Granularità:** per le operazioni di import massivo (risorse, parametri risorsa, assenze, consuntivo), viene generato un record di audit per ogni riga importata, con `azione = Import`. Il `valore_pre` contiene il valore precedente (se il record esisteva), il `valore_post` il valore importato.
+
+> **Retention:** i record di audit non vengono mai cancellati automaticamente. La policy di retention è definita dall'amministratore e può essere implementata in una fase successiva.
 
 ### 3.3 Relazioni principali
 
@@ -868,7 +888,9 @@ I parametri globali della BU (entità **Configurazione BU**: buffer ore settiman
 - parametri della Configurazione BU (sezione 3.2)
 - gestione dell'anagrafica **Clienti** (elenco controllato)
 - configurazione della sincronizzazione Jira (credenziali, frequenza, mapping campi)
-- log di sistema (sincronizzazioni, import, audit trail)
+- log di sistema (sincronizzazioni, import)
+- **Audit log** — registro consultabile di tutte le operazioni effettuate nell'applicazione (entità Audit log, sezione 3.2). La vista audit è una tabella filtrabile per utente, entità, tipo di azione e intervallo temporale. Per ogni record è possibile espandere il dettaglio con i valori pre e post modifica, evidenziando visivamente i campi che sono cambiati. Accessibile a entrambi i profili (D&R Manager e BU Manager)
+- **Logout** — pulsante di disconnessione dalla sessione corrente. Dopo il logout l'utente viene reindirizzato alla pagina di login Google
 
 ### 11.3 Navigazione del Resource Plan (vista pivot)
 
@@ -919,7 +941,7 @@ Ogni lista/tabella di entità nell'applicazione supporta:
 - Autorizzazione basata su ruoli (BU Manager, Demand & Resource Manager).
 - I dati del Resource Plan sono riservati alla BU: nessun accesso da parte di utenti esterni ai due profili definiti.
 - Le credenziali di accesso a Jira (API token) sono memorizzate in modo sicuro e non visibili nell'interfaccia.
-- Log di audit per le operazioni di modifica delle allocazioni.
+- **Audit log completo** per tutte le operazioni di creazione, modifica, cancellazione e import su ogni entità, con tracciamento dell'utente, dei valori pre e post modifica (sezione 3.2, entità Audit log). Consultabile dalla sezione Impostazioni.
 
 ### 12.3 Disponibilità
 
@@ -1049,10 +1071,10 @@ HR003;Verdi;Luca;Esterna;BU Documentale;false;Consulente XYZ
 I parametri temporalizzati delle risorse possono essere importati in blocco tramite upload di un file **CSV**, utile per aggiornamenti massivi (es. adeguamento tariffe annuali, promozioni di livello, variazioni contrattuali). Il formato atteso:
 
 ```
-id_dipendente;ruolo;livello;ore_settimanali;costo_giornata;coefficiente_produttivita;buffer_ore_settimanali;data_inizio_validita
-HR001;BE;Senior;40;350;0.85;;2026-09-01
-HR002;FE;Mid;36;300;1.0;12;2026-09-01
-HR003;Analista;Junior;40;200;1.3;;2026-09-01
+id_dipendente;ruolo;livello;ore_settimanali;costo_giornata;coefficiente_produttivita;buffer_ore_settimanali;data_inizio_validita;data_fine_validita
+HR001;BE;Senior;40;350;0.85;;2026-09-01;
+HR002;FE;Mid;36;300;1.0;12;2026-09-01;2026-12-31
+HR003;Analista;Junior;40;200;1.3;;2026-09-01;
 ```
 
 Dove:
@@ -1064,7 +1086,8 @@ Dove:
 - **costo_giornata** — costo giornaliero in euro
 - **coefficiente_produttivita** — fattore moltiplicativo rispetto al baseline mid-level (default: 1.0)
 - **buffer_ore_settimanali** — override del buffer globale BU (vuoto = si applica il valore globale)
-- **data_inizio_validita** — data da cui i parametri sono validi (obbligatoria). La `data_fine_validita` non è nel CSV: viene calcolata automaticamente dal sistema alla chiusura del record
+- **data_inizio_validita** — data da cui i parametri sono validi (obbligatoria)
+- **data_fine_validita** — data di fine validità dei parametri (opzionale: vuoto = valido correntemente, `null`)
 
 L'applicazione, in fase di import:
 
@@ -1102,4 +1125,4 @@ L'applicazione effettua il **match per nominativo** (costruito come `cognome + "
 | :---- | :---- | :---- |
 | 27/08/2026 | Draft v1 | Stesura iniziale del documento con sezioni 1-10: contesto e obiettivi, utenti e permessi, modello dati (Applicativo, Modulo, Contratto, Iniziativa, Risorsa, Parametro risorsa, Allocazione, Profilo di competenza), integrazione Jira, import assenze Factorial, funzionalità core (orizzonti temporali, vista pivot, gestione iniziative/allocazioni, pool risorse, soft/hard lock, affiancamento, allocazione PM, PTF, finestre rilascio), regole di business automatiche, dashboard D&R Manager e BU Manager, requisiti non funzionali |
 | 28/08/2026 | Draft v1.1 | **Modello dati:** aggiunto campo `modulo` (FK nullable) su Iniziativa per tracciamento competenze a livello modulo. Spostati `soft_lock_scadenza` e `affiancamento` da Iniziativa ad Allocazione (la granularità è sulla singola assegnazione risorsa-iniziativa, non sull'iniziativa). Unificati `flag_rischio_tecnico` e `flag_rischio_stima` nel campo `affidabilita_stima` (enum Alta/Media/Bassa) + `vincoli_criticita` (testo libero PTF). Allineato `ruolo_nell_iniziativa` su Allocazione alla stessa enum di `ruolo` su Risorsa. Aggiunto flag `attivo` su Risorsa (auto-calcolato da `data_fine_contratto`). Aggiunto `data_fine_contratto` e `buffer_ore_settimanali` (override per risorsa) su Parametro risorsa. **Vincoli:** sovra-allocazione >100% cambiata da blocco a warning con conferma. Vincolo durata contrattuale cambiato da blocco a warning con conferma. **Nuove sezioni:** sezione 6 (Consuntivo e accuratezza delle stime) con entità Consuntivo e import CSV da worklog Jira. Sezione 12 (Stack tecnologico) con scelte architetturali: Next.js 15+, Vercel, Neon Postgres, Prisma 6+, Auth.js con Google Provider, MUI v6+, palette colori SiMaggioli. **Import:** aggiunto formato CSV assenze Factorial (nominativo;giorno;ore_assenza) e import risorse da CSV |
-| 31/08/2026 | Draft v2 | **Review commenti Giulia Pau e Sonia Brundu (28/08).** Invertita codifica colori saturazione: blu per sotto-utilizzo, verde per fascia ottimale (era il contrario). Risorse di manutenzione: ammessa allocazione a percentuale variabile, non più vincolate al 100%. Rimossa entità Finestra di rilascio e relativa sezione 7.9, campo su Applicativo e alert "Conflitto con finestra di rilascio" (non necessaria per la prima versione). Aggiunta sezione 7.0 (Operazioni CRUD e regole di cancellazione): tutte le entità modificabili e cancellabili, cancellazione bloccata (non a cascata) se esistono dipendenze. **Modello dati:** aggiunta entità Cliente (slug PK auto-generato da nome, inline creation da form Contratto); campo `cliente` su Contratto cambiato da Stringa a FK → Cliente; Risorsa: `nominativo` sostituito da campi distinti `nome` + `cognome`, aggiunto `id_dipendente` (dal sistema HR), `is_ptf` rinominato in "PTF (Presidio Tecnico Funzionale)"; Iniziativa: aggiunto campo `codice` per riferimento rapido; Allocazione: `effort_allocato_gg` ora calcolato automaticamente da `giorni_lavorativi(data_inizio, data_fine) × percentuale_allocazione / 100`, il D&R Manager inserisce solo percentuale e date. **UX e navigazione (nuova sezione 11):** principi generali (informazione minima, tooltip, badge iniziali risorse con tooltip nominativo completo); pagina impostazioni globali (parametri BU); navigazione pivot con zoom a 3 livelli (settimane, mesi, quarter) e filtri per ruolo/percentuale/date; navigazione bidirezionale risorse ↔ iniziative; creazione allocazioni inline con panel riepilogativo iniziativa e giorni residui; filtri rapidi come chip per campi binari/enum e ricerca full-text su tutte le entità. **Storicizzazione parametri risorsa:** `ruolo` e `livello` spostati da Risorsa a Parametro risorsa (temporalizzati con data inizio/fine validità come ore, costo, coefficiente). `data_fine_contratto` rimosso: il flag `attivo` sulla Risorsa ora dipende dalla `data_fine_validita` del Parametro risorsa vigente. **Campo `pool` eliminato** dall'entità Risorsa; rimossa sezione 7.4 (I due pool di risorse); sottosezioni 7.5-7.8 rinumerate a 7.4-7.7. **Entità Assenza allineata al CSV:** `data_inizio`/`data_fine` sostituiti da `giorno` (singola data) + `ore_assenza`; aggiunto campo `fonte` (Factorial/Jira). **Import:** aggiornato CSV risorse con campi separati `id_dipendente`, `cognome`, `nome` (rimossi `ruolo`, `livello`, `pool`); aggiunto nuovo import massivo Parametro risorsa da CSV; esplicitato match per nominativo costruito (`cognome + " " + nome`) su tutti gli importer (risorse, assenze, consuntivo). **Fuori scope (rimandati):** skill matrix / mappatura tecnologie per risorsa, tracciamento formazione con board Jira |
+| 31/08/2026 | Draft v2 | **Review commenti Giulia Pau e Sonia Brundu (28/08).** Invertita codifica colori saturazione: blu per sotto-utilizzo, verde per fascia ottimale (era il contrario). Risorse di manutenzione: ammessa allocazione a percentuale variabile, non più vincolate al 100%. Rimossa entità Finestra di rilascio e relativa sezione 7.9, campo su Applicativo e alert "Conflitto con finestra di rilascio" (non necessaria per la prima versione). Aggiunta sezione 7.0 (Operazioni CRUD e regole di cancellazione): tutte le entità modificabili e cancellabili, cancellazione bloccata (non a cascata) se esistono dipendenze. **Modello dati:** aggiunta entità Cliente (slug PK auto-generato da nome, inline creation da form Contratto); campo `cliente` su Contratto cambiato da Stringa a FK → Cliente; Risorsa: `nominativo` sostituito da campi distinti `nome` + `cognome`, aggiunto `id_dipendente` (dal sistema HR), `is_ptf` rinominato in "PTF (Presidio Tecnico Funzionale)"; Iniziativa: aggiunto campo `codice` per riferimento rapido; Allocazione: `effort_allocato_gg` ora calcolato automaticamente da `giorni_lavorativi(data_inizio, data_fine) × percentuale_allocazione / 100`, il D&R Manager inserisce solo percentuale e date. **UX e navigazione (nuova sezione 11):** principi generali (informazione minima, tooltip, badge iniziali risorse con tooltip nominativo completo); pagina impostazioni globali (parametri BU); navigazione pivot con zoom a 3 livelli (settimane, mesi, quarter) e filtri per ruolo/percentuale/date; navigazione bidirezionale risorse ↔ iniziative; creazione allocazioni inline con panel riepilogativo iniziativa e giorni residui; filtri rapidi come chip per campi binari/enum e ricerca full-text su tutte le entità. **Storicizzazione parametri risorsa:** `ruolo` e `livello` spostati da Risorsa a Parametro risorsa (temporalizzati con data inizio/fine validità come ore, costo, coefficiente). `data_fine_contratto` rimosso: il flag `attivo` sulla Risorsa ora dipende dalla `data_fine_validita` del Parametro risorsa vigente. **Campo `pool` eliminato** dall'entità Risorsa; rimossa sezione 7.4 (I due pool di risorse); sottosezioni 7.5-7.8 rinumerate a 7.4-7.7. **Entità Assenza allineata al CSV:** `data_inizio`/`data_fine` sostituiti da `giorno` (singola data) + `ore_assenza`; aggiunto campo `fonte` (Factorial/Jira). **Import:** aggiornato CSV risorse con campi separati `id_dipendente`, `cognome`, `nome` (rimossi `ruolo`, `livello`, `pool`); aggiunto nuovo import massivo Parametro risorsa da CSV; esplicitato match per nominativo costruito (`cognome + " " + nome`) su tutti gli importer (risorse, assenze, consuntivo). **Audit e logout:** aggiunta entità Audit log (sezione 3.2) con tracciamento completo di ogni operazione (azione, utente, entità, valore pre/post modifica); consultazione audit nella sezione Impostazioni con filtri per utente/entità/azione/periodo; aggiunta funzionalità di logout. **Fuori scope (rimandati):** skill matrix / mappatura tecnologie per risorsa, tracciamento formazione con board Jira |

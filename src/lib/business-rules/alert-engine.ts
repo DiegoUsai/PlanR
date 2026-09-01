@@ -334,7 +334,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
       const to = p.validTo ? new Date(p.validTo) : null;
       return from <= today && (!to || to >= today);
     });
-    const role = currentP?.role ?? "ALTRO";
+    const role = currentP?.role ?? "SENZA_RUOLO";
     const group = roleGroups.get(role) ?? [];
     group.push(r);
     roleGroups.set(role, group);
