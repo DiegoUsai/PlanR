@@ -488,7 +488,7 @@ function ImportTab() {
         title="Parametri Risorsa"
         description="Carica parametri economici e profilo. Match per id_dipendente: chiude il parametro corrente e ne crea uno nuovo."
         endpoint="/api/import/parametri"
-        csvFormat={`id_dipendente;ruolo;livello;ore_settimanali;costo_giornata;coefficiente_produttivita;buffer_ore_settimanali;data_inizio_validita\nEMP-001;FE;Senior;40;300;0.85;;2026-09-01`}
+        csvFormat={`id_dipendente;ruolo;livello;ore_settimanali;costo_giornata;coefficiente_produttivita;buffer_ore_settimanali;data_inizio_validita;data_fine_validita\nEMP-001;Senior Dev;Senior;40;300;0.85;;2026-09-01;2027-03-31`}
       />
       <ImportSection
         title="Assenze (Factorial)"
