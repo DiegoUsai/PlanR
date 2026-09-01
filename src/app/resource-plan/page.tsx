@@ -94,7 +94,7 @@ interface DisplayCell {
   allocations: WeekAllocation[];
 }
 
-type Zoom = "settimane" | "mesi";
+type Zoom = "giorni" | "settimane" | "mesi";
 
 function aggregateToMonths(
   weeks: PivotData["weeks"],
@@ -162,11 +162,13 @@ export default function ResourcePlanPage() {
   } | null>(null);
 
   useEffect(() => {
-    fetch("/api/resource-plan")
+    setData(null);
+    const url = zoom === "giorni" ? "/api/resource-plan?zoom=giorni" : "/api/resource-plan";
+    fetch(url)
       .then((r) => r.json())
       .then(setData)
       .catch(() => {});
-  }, []);
+  }, [zoom]);
 
   const monthColumns = useMemo(() => {
     if (!data) return null;
@@ -176,10 +178,8 @@ export default function ResourcePlanPage() {
 
   const displayColumns: DisplayColumn[] = useMemo(() => {
     if (!data) return [];
-    if (zoom === "settimane") {
-      return data.weeks.map((w) => ({ label: w.label, key: w.start }));
-    }
-    return monthColumns || [];
+    if (zoom === "mesi") return monthColumns || [];
+    return data.weeks.map((w) => ({ label: w.label, key: w.start }));
   }, [data, zoom, monthColumns]);
 
   const filteredRows = data?.rows.filter((r) => {
@@ -191,11 +191,11 @@ export default function ResourcePlanPage() {
     if (!data) return new Map<string, DisplayCell[]>();
     const map = new Map<string, DisplayCell[]>();
     for (const row of filteredRows) {
-      if (zoom === "settimane") {
-        map.set(row.resourceId, row.weeks);
-      } else {
+      if (zoom === "mesi") {
         const { cells } = aggregateToMonths(data.weeks, row.weeks);
         map.set(row.resourceId, cells);
+      } else {
+        map.set(row.resourceId, row.weeks);
       }
     }
     return map;
@@ -215,7 +215,7 @@ export default function ResourcePlanPage() {
 
   const roles = [...new Set(data.rows.map((r) => r.role))];
 
-  const colWidth = zoom === "settimane" ? 60 : 80;
+  const colWidth = zoom === "giorni" ? 70 : zoom === "settimane" ? 60 : 80;
 
   return (
     <Box>
@@ -229,6 +229,7 @@ export default function ResourcePlanPage() {
           onChange={(_, v) => v && setZoom(v)}
           size="small"
         >
+          <ToggleButton value="giorni">Giorni</ToggleButton>
           <ToggleButton value="settimane">Settimane</ToggleButton>
           <ToggleButton value="mesi">Mesi</ToggleButton>
         </ToggleButtonGroup>
@@ -483,7 +484,7 @@ export default function ResourcePlanPage() {
         {popover && (
           <Box sx={{ p: 2, maxWidth: 400 }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              {popover.resourceName} — {zoom === "settimane" ? "Settimana" : ""} {popover.periodLabel}
+              {popover.resourceName} — {zoom === "giorni" ? "" : zoom === "settimane" ? "Settimana " : ""}{popover.periodLabel}
             </Typography>
             <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
               <Chip

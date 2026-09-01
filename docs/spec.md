@@ -214,7 +214,7 @@ Storico temporalizzato degli attributi variabili di una risorsa. Una variazione 
 | :---- | :---- | :---- |
 | **id** | UUID | Identificativo univoco |
 | **risorsa** | FK → Risorsa | |
-| **ruolo** | Enum | FE (Frontend), BE (Backend), Analista, Tech Lead, Architetto, PM, BA Senior, Altro. Ruolo della risorsa nel periodo di validità |
+| **ruolo** | Enum | Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect. Ruolo della risorsa nel periodo di validità |
 | **livello** | Enum | Junior, Mid, Senior. Livello di seniority nel periodo di validità |
 | **ore_settimanali** | Decimale | Ore teoriche settimanali della risorsa nel periodo di validità |
 | **costo_giornata** | Decimale | Costo giornaliero della risorsa in euro nel periodo di validità |
@@ -256,7 +256,7 @@ Assegnazione di una **Risorsa** a un'**Iniziativa** per un periodo specifico. È
 | **data_inizio** | Data | Data di inizio dell'allocazione. **Input del D&R Manager** |
 | **data_fine** | Data | Data di fine dell'allocazione. **Input del D&R Manager** |
 | **effort_allocato_gg** | Decimale | Giorni/uomo allocati per questa risorsa su questa iniziativa. **Calcolato automaticamente:** `giorni_lavorativi(data_inizio, data_fine) × percentuale_allocazione / 100`. Non inserito manualmente |
-| **ruolo_nell_iniziativa** | Enum | FE (Frontend), BE (Backend), Analista, Tech Lead, Architetto, PM, BA Senior, Altro — stessa enum del campo `ruolo` dell'entità Risorsa. Indica quale ruolo ricopre la risorsa in questa specifica iniziativa (può coincidere con il ruolo principale o differire) |
+| **ruolo_nell_iniziativa** | Enum | Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect — stessa enum del campo `ruolo` dell'entità Parametro risorsa. Indica quale ruolo ricopre la risorsa in questa specifica iniziativa (può coincidere con il ruolo principale o differire) |
 | **affiancamento** | Booleano | Se true, questa allocazione è una leva di crescita (sezione 8.2 del Draft): la risorsa lavora sull'iniziativa in affiancamento con un senior o viceversa |
 | **is_senior_affiancamento** | Booleano | Se true e `affiancamento = true`, questa allocazione è il senior che affianca (la risorsa affianca un junior sulla stessa iniziativa) |
 | **note** | Testo | Note libere |
@@ -654,7 +654,7 @@ L'operatività del Resource Plan si svolge su due livelli: l'**iniziativa** (cos
 **Operazioni sulle iniziative:**
 
 - **Creazione da Jira** — importazione di un'epica classificata "Proceed"; i campi sizing, priorità, date, valore economico e figure necessarie vengono pre-compilati
-- **Creazione manuale** — inserimento diretto per iniziative non tracciate su Jira
+- **Creazione manuale** — inserimento diretto per iniziative non tracciate su Jira. Non esiste un vincolo formale tra applicativo e contratto sull'iniziativa (il D&R Manager può associare qualsiasi combinazione), ma l'interfaccia facilita la selezione con un **filtro incrociato**: se si seleziona prima l'applicativo, il menu a tendina dei contratti mostra solo i contratti associati a quell'applicativo; se si seleziona prima il contratto, il menu degli applicativi mostra solo gli applicativi associati a quel contratto. In entrambi i casi è possibile rimuovere il filtro e vedere l'elenco completo
 - **Cambio stato** — transizione di stato (In Attesa di Allocazione → Allocato → In Lavorazione → Completato). Gli stati "In attesa di copertura contrattuale" e "Fuori scope" sono impostabili in qualsiasi momento
 - **Chiusura** — completamento con registrazione della data effettiva di fine
 
@@ -744,7 +744,7 @@ L'applicazione implementa un sistema di alert che segnala le situazioni che rich
 
 | Alert | Condizione | Azione suggerita |
 | :---- | :---- | :---- |
-| **Sovra-allocazione** | Saturazione di una risorsa > soglia di allarme (default 90%, configurabile) per più di due settimane consecutive (sezione 8.4 del Draft) | Ribilanciare le allocazioni o segnalare al BU Manager |
+| **Sovra-allocazione** | Saturazione di una risorsa > soglia di allarme (default 110%, configurabile) per più di due settimane consecutive (sezione 8.4 del Draft) | Ribilanciare le allocazioni o segnalare al BU Manager |
 | **Sotto-utilizzo** | Saturazione di una risorsa < 50% per più di due settimane consecutive | Verificare se la risorsa può essere allocata su altre attività |
 | **Scadenza soft lock** | Data di scadenza del soft lock superata | Contattare il PM per aggiornamento; estendere o rilasciare |
 | **Ready — Pending Resources** | Iniziativa in stato "Ready — Pending Resources" da più di 2 settimane (sezione 11.4 del Draft) | Segnalare al BU Manager come problema strutturale di capacity |
@@ -757,7 +757,7 @@ L'applicazione implementa un sistema di alert che segnala le situazioni che rich
 
 | Alert | Condizione | Azione suggerita |
 | :---- | :---- | :---- |
-| **Profilo saturo** | Tutte le risorse di un profilo specifico (es. "BA Senior") sono sopra l'85% per le prossime 4 settimane | Valutare assunzione, formazione interna o rifiuto di nuove richieste su quel profilo |
+| **Profilo saturo** | Tutte le risorse di un profilo specifico (es. "Analista Funzionale") sono sopra il 100% per le prossime 4 settimane | Valutare assunzione, formazione interna o rifiuto di nuove richieste su quel profilo |
 | **Pipeline value elevata** | Somma del valore stimato delle iniziative con soft lock attivo supera il 20% del budget annuale configurato (sezione 14.2 del Draft) | Valutare il rischio di capacity se tutte le approvazioni arrivano contemporaneamente |
 | **Accumulo Pending Resources** | Più di 3 iniziative in stato "Ready — Pending Resources" il cui fabbisogno insiste sullo stesso profilo | Decisione strutturale di capacity |
 
@@ -781,12 +781,12 @@ Metrica di riferimento: **Saturazione delle Risorse** (sezione 14.1 del Draft).
 
 **Contenuto:**
 
-- **Heatmap risorse × settimane** — matrice colorata che mostra la saturazione di ogni risorsa per ogni settimana dell'orizzonte di 12 settimane. Codifica colore: blu (sotto-utilizzo), verde (fascia ottimale 75-85%), giallo (attenzione 86-90%), rosso (sovra-allocazione >90%).
+- **Heatmap risorse × settimane** — matrice colorata che mostra la saturazione di ogni risorsa per ogni settimana dell'orizzonte di 12 settimane. Codifica colore: blu (sotto-utilizzo), verde (fascia ottimale 75-100%), giallo (attenzione 101-110%), rosso (sovra-allocazione >110%).
 - **Distribuzione per fascia** — grafico a barre che mostra quante risorse cadono in ciascuna fascia di saturazione nella settimana corrente e nelle prossime 4 settimane.
-- **Trend settimanale** — grafico a linea che mostra l'evoluzione della saturazione media della BU nelle ultime 12 settimane, con banda di riferimento 75-85%.
+- **Trend settimanale** — grafico a linea che mostra l'evoluzione della saturazione media della BU nelle ultime 12 settimane, con banda di riferimento 75-100%.
 - **Filtri:** per applicativo, contratto, ruolo, livello, tipologia (interna/esterna), appartenenza (BU Documentale/Engineering Excellence).
-- **Target:** saturazione media della BU tra 75% e 85% (sezione 8.4 del Draft).
-- **Segnale di allarme:** qualsiasi profilo sopra 90% per più di due settimane consecutive.
+- **Target:** saturazione media della BU tra 75% e 100% (il buffer settimanale assorbe già il margine operativo).
+- **Segnale di allarme:** qualsiasi profilo sopra 110% per più di due settimane consecutive.
 
 ### 9.2 Dashboard "tempo di ciclo"
 
@@ -836,7 +836,7 @@ Vista di sintesi riservata al BU Manager.
 
 **Contenuto:**
 
-- **Saturazione media BU** — gauge con valore corrente e trend a 12 settimane. Banda di riferimento 75-85%.
+- **Saturazione media BU** — gauge con valore corrente e trend a 12 settimane. Banda di riferimento 75-100%.
 - **Risorse per fascia** — donut chart con distribuzione risorse per fascia di saturazione (sotto-utilizzo / ottimale / attenzione / sovra-allocazione).
 - **Top 3 profili critici** — i tre profili con saturazione più alta, con previsione a 4 e 8 settimane.
 - **Pipeline value** — somma del valore stimato delle iniziative con soft lock attivo, confrontata con il budget annuale della BU (parametro configurabile).
@@ -905,11 +905,12 @@ I parametri globali della BU (entità **Configurazione BU**: buffer ore settiman
 
 La vista pivot è il cuore dell'applicazione. Oltre ai filtri già definiti nella sezione 7.2, supporta:
 
-- **Filtro per ruolo** — seleziona solo le risorse con un ruolo specifico (FE, BE, Analista, ecc.)
+- **Filtro per ruolo** — seleziona solo le risorse con un ruolo specifico (Analista Funzionale, Senior Dev, Developer, Tech Leader, ecc.)
 - **Filtro per percentuale di allocazione** — range slider per mostrare solo le risorse con saturazione entro un intervallo (es. "mostra solo risorse con saturazione < 50%" per trovare disponibilità)
 - **Filtro per date** — restringe la finestra temporale visualizzata
-- **Zoom temporale** — tre livelli di aggregazione:
-  - **Settimane** — vista di default, massimo dettaglio, una colonna per settimana
+- **Zoom temporale** — quattro livelli di aggregazione:
+  - **Giorni** — massimo dettaglio, una colonna per giorno lavorativo, finestra fissa di 2 settimane (10 giorni). Permette di vedere esattamente quali giorni sono occupati, quali hanno assenze e quali sono liberi. Utile per la micro-pianificazione e per risolvere conflitti puntuali
+  - **Settimane** — vista di default, una colonna per settimana
   - **Mesi** — aggregazione mensile della saturazione media, visione a medio termine
   - **Quarter** — aggregazione trimestrale, visione strategica per il BU Manager
 - **Totali ore** — per ogni risorsa e per ogni periodo visualizzato, la pivot mostra il totale delle **ore allocate in lavoro** e delle **ore in ferie/assenza**, distinti visivamente
@@ -1081,15 +1082,15 @@ I parametri temporalizzati delle risorse possono essere importati in blocco tram
 
 ```
 id_dipendente;ruolo;livello;ore_settimanali;costo_giornata;coefficiente_produttivita;buffer_ore_settimanali;data_inizio_validita;data_fine_validita
-HR001;BE;Senior;40;350;0.85;;2026-09-01;
-HR002;FE;Mid;36;300;1.0;12;2026-09-01;2026-12-31
-HR003;Analista;Junior;40;200;1.3;;2026-09-01;
+HR001;Senior Dev;Senior;40;350;0.85;;2026-09-01;
+HR002;Developer;Mid;36;300,00;1.0;12;2026-09-01;2026-12-31
+HR003;Analista Funzionale;Junior;40;200;1.3;;2026-09-01;
 ```
 
 Dove:
 
 - **id_dipendente** — identificativo della risorsa nel sistema HR (chiave di match con l'anagrafica risorse)
-- **ruolo** — ruolo della risorsa nel periodo (FE, BE, Analista, Tech Lead, Architetto, PM, BA Senior, Altro)
+- **ruolo** — ruolo della risorsa nel periodo (Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect)
 - **livello** — livello di seniority (Junior, Mid, Senior)
 - **ore_settimanali** — ore teoriche settimanali
 - **costo_giornata** — costo giornaliero in euro
@@ -1135,4 +1136,4 @@ L'applicazione effettua il **match per nominativo** (costruito come `cognome + "
 | 27/08/2026 | Draft v1 | Stesura iniziale del documento con sezioni 1-10: contesto e obiettivi, utenti e permessi, modello dati (Applicativo, Modulo, Contratto, Iniziativa, Risorsa, Parametro risorsa, Allocazione, Profilo di competenza), integrazione Jira, import assenze Factorial, funzionalità core (orizzonti temporali, vista pivot, gestione iniziative/allocazioni, pool risorse, soft/hard lock, affiancamento, allocazione PM, PTF, finestre rilascio), regole di business automatiche, dashboard D&R Manager e BU Manager, requisiti non funzionali |
 | 28/08/2026 | Draft v1.1 | **Modello dati:** aggiunto campo `modulo` (FK nullable) su Iniziativa per tracciamento competenze a livello modulo. Spostati `soft_lock_scadenza` e `affiancamento` da Iniziativa ad Allocazione (la granularità è sulla singola assegnazione risorsa-iniziativa, non sull'iniziativa). Unificati `flag_rischio_tecnico` e `flag_rischio_stima` nel campo `affidabilita_stima` (enum Alta/Media/Bassa) + `vincoli_criticita` (testo libero PTF). Allineato `ruolo_nell_iniziativa` su Allocazione alla stessa enum di `ruolo` su Risorsa. Aggiunto flag `attivo` su Risorsa (auto-calcolato da `data_fine_contratto`). Aggiunto `data_fine_contratto` e `buffer_ore_settimanali` (override per risorsa) su Parametro risorsa. **Vincoli:** sovra-allocazione >100% cambiata da blocco a warning con conferma. Vincolo durata contrattuale cambiato da blocco a warning con conferma. **Nuove sezioni:** sezione 6 (Consuntivo e accuratezza delle stime) con entità Consuntivo e import CSV da worklog Jira. Sezione 12 (Stack tecnologico) con scelte architetturali: Next.js 15+, Vercel, Neon Postgres, Prisma 6+, Auth.js con Google Provider, MUI v6+, palette colori SiMaggioli. **Import:** aggiunto formato CSV assenze Factorial (nominativo;giorno;ore_assenza) e import risorse da CSV |
 | 31/08/2026 | Draft v2 | **Review commenti Giulia Pau e Sonia Brundu (28/08).** Invertita codifica colori saturazione: blu per sotto-utilizzo, verde per fascia ottimale (era il contrario). Risorse di manutenzione: ammessa allocazione a percentuale variabile, non più vincolate al 100%. Rimossa entità Finestra di rilascio e relativa sezione 7.9, campo su Applicativo e alert "Conflitto con finestra di rilascio" (non necessaria per la prima versione). Aggiunta sezione 7.0 (Operazioni CRUD e regole di cancellazione): tutte le entità modificabili e cancellabili, cancellazione bloccata (non a cascata) se esistono dipendenze. **Modello dati:** aggiunta entità Cliente (slug PK auto-generato da nome, inline creation da form Contratto); campo `cliente` su Contratto cambiato da Stringa a FK → Cliente; Risorsa: `nominativo` sostituito da campi distinti `nome` + `cognome`, aggiunto `id_dipendente` (dal sistema HR), `is_ptf` rinominato in "PTF (Presidio Tecnico Funzionale)"; Iniziativa: aggiunto campo `codice` per riferimento rapido; Allocazione: `effort_allocato_gg` ora calcolato automaticamente da `giorni_lavorativi(data_inizio, data_fine) × percentuale_allocazione / 100`, il D&R Manager inserisce solo percentuale e date. **UX e navigazione (nuova sezione 11):** principi generali (informazione minima, tooltip, badge iniziali risorse con tooltip nominativo completo); pagina impostazioni globali (parametri BU); navigazione pivot con zoom a 3 livelli (settimane, mesi, quarter) e filtri per ruolo/percentuale/date; navigazione bidirezionale risorse ↔ iniziative; creazione allocazioni inline con panel riepilogativo iniziativa e giorni residui; filtri rapidi come chip per campi binari/enum e ricerca full-text su tutte le entità. **Fuori scope (rimandati):** skill matrix / mappatura tecnologie per risorsa, tracciamento formazione con board Jira |
-| 31/08/2026 | Draft v2.1 | **Storicizzazione parametri risorsa:** `ruolo` e `livello` spostati da Risorsa a Parametro risorsa (temporalizzati con `data_inizio_validita` / `data_fine_validita` come ore, costo, coefficiente). `data_fine_contratto` rimosso da Parametro risorsa: il flag `attivo` sulla Risorsa ora dipende dalla `data_fine_validita` del Parametro risorsa vigente. **Campo `pool` eliminato** dall'entità Risorsa; rimossa sezione 7.4 (I due pool di risorse); sottosezioni 7.5-7.8 rinumerate a 7.4-7.7. **Entità Assenza allineata al CSV:** `data_inizio`/`data_fine` sostituiti da `giorno` (singola data) + `ore_assenza`; aggiunto campo `fonte` (Factorial/Jira). **Import:** aggiornato CSV risorse con campi separati `id_dipendente`, `cognome`, `nome` (rimossi `ruolo`, `livello`, `pool`); aggiunto nuovo import massivo Parametro risorsa da CSV con `data_fine_validita` opzionale; esplicitato match per nominativo costruito (`cognome + " " + nome`) su tutti gli importer (risorse, assenze, consuntivo). **Audit e logout:** aggiunta entità Audit log (sezione 3.2) con tracciamento completo di ogni operazione (azione, utente, entità, valore pre/post modifica); consultazione audit nella sezione Impostazioni con filtri per utente/entità/azione/periodo; aggiunta funzionalità di logout. **Vista pivot — assenze visibili:** riscritta sezione 7.2 con rappresentazione grafica a blocchi distinti (blocco assenze in grigio tratteggiato + blocchi allocazioni + spazio libero); saturazione calcolata sulla capacità disponibile (al netto delle assenze), non sulla teorica. **Soglie saturazione ricalibrate:** il buffer settimanale assorbe già il margine operativo e le stime hanno la propria contingency, quindi la fascia ottimale sale a 75-100% (era 75-85%), attenzione 101-110% (era 86-90%), sovra-allocazione critica >110% (era >90%). Default Configurazione BU aggiornati di conseguenza |
+| 31/08/2026 | Draft v2.1 | **Storicizzazione parametri risorsa:** `ruolo` e `livello` spostati da Risorsa a Parametro risorsa (temporalizzati con `data_inizio_validita` / `data_fine_validita` come ore, costo, coefficiente). `data_fine_contratto` rimosso da Parametro risorsa: il flag `attivo` sulla Risorsa ora dipende dalla `data_fine_validita` del Parametro risorsa vigente. **Campo `pool` eliminato** dall'entità Risorsa; rimossa sezione 7.4 (I due pool di risorse); sottosezioni 7.5-7.8 rinumerate a 7.4-7.7. **Entità Assenza allineata al CSV:** `data_inizio`/`data_fine` sostituiti da `giorno` (singola data) + `ore_assenza`; aggiunto campo `fonte` (Factorial/Jira). **Import:** aggiornato CSV risorse con campi separati `id_dipendente`, `cognome`, `nome` (rimossi `ruolo`, `livello`, `pool`); aggiunto nuovo import massivo Parametro risorsa da CSV con `data_fine_validita` opzionale; esplicitato match per nominativo costruito (`cognome + " " + nome`) su tutti gli importer (risorse, assenze, consuntivo). **Audit e logout:** aggiunta entità Audit log (sezione 3.2) con tracciamento completo di ogni operazione (azione, utente, entità, valore pre/post modifica); consultazione audit nella sezione Impostazioni con filtri per utente/entità/azione/periodo; aggiunta funzionalità di logout. **Vista pivot — assenze visibili:** riscritta sezione 7.2 con rappresentazione grafica a blocchi distinti (blocco assenze in grigio tratteggiato + blocchi allocazioni + spazio libero); saturazione calcolata sulla capacità disponibile (al netto delle assenze), non sulla teorica. **Soglie saturazione ricalibrate:** il buffer settimanale assorbe già il margine operativo e le stime hanno la propria contingency, quindi la fascia ottimale sale a 75-100% (era 75-85%), attenzione 101-110% (era 86-90%), sovra-allocazione critica >110% (era >90%). Default Configurazione BU aggiornati di conseguenza. **Creazione iniziativa — filtro incrociato applicativo/contratto:** nessun vincolo formale tra applicativo e contratto, ma filtro incrociato bidirezionale nel form di creazione (selezionando l'applicativo si filtrano i contratti associati e viceversa, con possibilità di rimuovere il filtro). **Vista pivot giornaliera:** aggiunto quarto livello di zoom "Giorni" con dettaglio giornaliero e finestra fissa di 2 settimane (10 giorni lavorativi) per micro-pianificazione |

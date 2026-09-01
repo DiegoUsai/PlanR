@@ -3,7 +3,7 @@
 Questo documento definisce i concetti del dominio dell'applicazione PlanR. E' la fonte di verita per la terminologia e le regole di business. Ogni modifica al modello dati deve essere verificata contro questo glossario.
 
 **Documento di riferimento:** [[BU_Documentale_SAP_Demand_Resource_Management_Draft]] (Draft v3, 6 luglio 2026).
-**Specifiche applicazione:** docs/spec.md (Draft v2, 31 agosto 2026).
+**Specifiche applicazione:** docs/spec.md (Draft v2.1, 31 agosto 2026).
 
 ---
 
@@ -198,8 +198,8 @@ Parametri globali dell'applicazione (singleton).
 | budget_annuale | - | Budget annuale BU in euro, riferimento per alert Pipeline Value |
 | buffer_ore_settimanali | 8 ore | Buffer globale sottratto dalla capacita teorica (riunioni, context switching). Override possibile per risorsa |
 | saturazione_min | 75% | Soglia inferiore fascia ottimale |
-| saturazione_max | 85% | Soglia superiore fascia ottimale |
-| saturazione_allarme | 90% | Soglia sovra-allocazione |
+| saturazione_max | 100% | Soglia superiore fascia ottimale (il buffer assorbe gia il margine operativo) |
+| saturazione_allarme | 110% | Soglia sovra-allocazione critica |
 
 ### Snapshot settimanale (WeeklySnapshot)
 
@@ -306,7 +306,7 @@ Non e un'entita persistente. E' un aggregato derivato in tempo reale dallo stori
 
 | Alert | Condizione |
 |---|---|
-| Profilo saturo | Tutte le risorse di un profilo > 85% per 4 settimane |
+| Profilo saturo | Tutte le risorse di un profilo > 100% per 4 settimane |
 | Pipeline value elevata | Soft lock value > 20% budget annuale |
 | Accumulo Pending Resources | > 3 iniziative Pending Resources sullo stesso profilo |
 
@@ -319,9 +319,9 @@ Gli alert possono essere: presi in carico, silenziati (con motivazione obbligato
 | Fascia | Colore | Range |
 |---|---|---|
 | Sotto-utilizzo | Blu (#2196F3) | 0-74% |
-| Fascia ottimale | Verde (#4CAF50) | 75-85% |
-| Attenzione | Giallo (#FFC107) | 86-90% |
-| Sovra-allocazione | Rosso (#F44336) | >90% |
+| Fascia ottimale | Verde (#4CAF50) | 75-100% |
+| Attenzione | Giallo (#FFC107) | 101-110% |
+| Sovra-allocazione | Rosso (#F44336) | >110% |
 
 ---
 

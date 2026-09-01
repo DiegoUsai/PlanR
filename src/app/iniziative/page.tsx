@@ -55,10 +55,13 @@ interface AppOption {
   id: string;
   name: string;
   modules: Array<{ id: string; name: string }>;
+  contracts: Array<{ id: string }>;
 }
 interface ContractOption {
   id: string;
   identifier: string;
+  notes: string | null;
+  applications: Array<{ id: string }>;
 }
 
 const emptyForm = {
@@ -129,7 +132,24 @@ export default function IniziativePage() {
   };
 
   const selectedApp = applications.find((a) => a.id === form.applicationId);
+  const selectedContract = contracts.find((c) => c.id === form.contractId);
   const availableModules = selectedApp?.modules || [];
+
+  const filteredContracts = form.applicationId
+    ? contracts.filter(
+        (c) =>
+          c.applications.some((a) => a.id === form.applicationId) ||
+          c.id === form.contractId
+      )
+    : contracts;
+
+  const filteredApps = form.contractId
+    ? applications.filter(
+        (a) =>
+          selectedContract?.applications.some((ca) => ca.id === a.id) ||
+          a.id === form.applicationId
+      )
+    : applications;
 
   const handleCreate = () => {
     setEditing(null);
@@ -457,8 +477,9 @@ export default function IniziativePage() {
               onChange={(e) => handleAppChange(e.target.value)}
               required
               size="small"
+              helperText={form.contractId && filteredApps.length < applications.length ? "Filtrati per contratto" : undefined}
             >
-              {applications.map((a) => (
+              {filteredApps.map((a) => (
                 <MenuItem key={a.id} value={a.id}>
                   {a.name}
                 </MenuItem>
@@ -471,10 +492,11 @@ export default function IniziativePage() {
               onChange={(e) => updateForm("contractId", e.target.value)}
               required
               size="small"
+              helperText={form.applicationId && filteredContracts.length < contracts.length ? "Filtrati per applicativo" : undefined}
             >
-              {contracts.map((c) => (
+              {filteredContracts.map((c) => (
                 <MenuItem key={c.id} value={c.id}>
-                  {c.identifier}
+                  {c.notes ? `${c.identifier} — ${c.notes}` : c.identifier}
                 </MenuItem>
               ))}
             </TextField>

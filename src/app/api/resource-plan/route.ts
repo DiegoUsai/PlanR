@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 function decimalToNumber(d: unknown): number {
@@ -15,8 +15,29 @@ function getWeekStart(date: Date): Date {
   return d;
 }
 
-export async function GET() {
+function isBusinessDay(date: Date): boolean {
+  const day = date.getDay();
+  return day !== 0 && day !== 6;
+}
+
+const DAY_NAMES = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+
+function countBusinessDays(start: Date, end: Date): number {
+  let count = 0;
+  const d = new Date(start);
+  while (d <= end) {
+    if (isBusinessDay(d)) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return Math.max(1, count);
+}
+
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const zoom = searchParams.get("zoom");
+    const isDaily = zoom === "giorni";
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -24,7 +45,7 @@ export async function GET() {
     const globalBuffer = config ? decimalToNumber(config.weeklyHoursBuffer) : 8;
 
     const horizonEnd = new Date(today);
-    horizonEnd.setDate(horizonEnd.getDate() + 12 * 7);
+    horizonEnd.setDate(horizonEnd.getDate() + (isDaily ? 14 : 12 * 7));
 
     const resources = await prisma.resource.findMany({
       where: { attivo: true },
@@ -50,18 +71,37 @@ export async function GET() {
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
 
-    const weeks: { label: string; start: string; end: string }[] = [];
-    const weekStart = getWeekStart(today);
-    for (let i = 0; i < 12; i++) {
-      const wStart = new Date(weekStart);
-      wStart.setDate(wStart.getDate() + i * 7);
-      const wEnd = new Date(wStart);
-      wEnd.setDate(wEnd.getDate() + 6);
-      weeks.push({
-        label: `${wStart.getDate().toString().padStart(2, "0")}/${(wStart.getMonth() + 1).toString().padStart(2, "0")}`,
-        start: wStart.toISOString(),
-        end: wEnd.toISOString(),
-      });
+    const periods: { label: string; start: string; end: string }[] = [];
+
+    if (isDaily) {
+      const d = new Date(today);
+      let count = 0;
+      while (count < 10) {
+        if (isBusinessDay(d)) {
+          const dayEnd = new Date(d);
+          dayEnd.setHours(23, 59, 59, 999);
+          periods.push({
+            label: `${DAY_NAMES[d.getDay()]} ${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`,
+            start: new Date(d).toISOString(),
+            end: dayEnd.toISOString(),
+          });
+          count++;
+        }
+        d.setDate(d.getDate() + 1);
+      }
+    } else {
+      const weekStart = getWeekStart(today);
+      for (let i = 0; i < 12; i++) {
+        const wStart = new Date(weekStart);
+        wStart.setDate(wStart.getDate() + i * 7);
+        const wEnd = new Date(wStart);
+        wEnd.setDate(wEnd.getDate() + 6);
+        periods.push({
+          label: `${wStart.getDate().toString().padStart(2, "0")}/${(wStart.getMonth() + 1).toString().padStart(2, "0")}`,
+          start: wStart.toISOString(),
+          end: wEnd.toISOString(),
+        });
+      }
     }
 
     interface WeekAllocation {
@@ -105,63 +145,80 @@ export async function GET() {
       const buffer = param.weeklyHoursBuffer
         ? decimalToNumber(param.weeklyHoursBuffer)
         : globalBuffer;
+      const dailyHours = weeklyHours / 5;
+      const dailyBuffer = buffer / 5;
 
-      const weekCells: WeekCell[] = [];
+      const periodCells: WeekCell[] = [];
 
-      for (const week of weeks) {
-        const wStart = new Date(week.start);
-        const wEnd = new Date(week.end);
+      for (const period of periods) {
+        const pStart = new Date(period.start);
+        const pEnd = new Date(period.end);
 
         let absHours = 0;
         for (const abs of resource.absences) {
           const aDate = new Date(abs.date);
-          if (aDate >= wStart && aDate <= wEnd) {
+          if (aDate >= pStart && aDate <= pEnd) {
             absHours += decimalToNumber(abs.hours);
           }
         }
 
-        const capacity = Math.max(0, weeklyHours - buffer - absHours);
+        const periodCapacity = isDaily
+          ? dailyHours - dailyBuffer
+          : weeklyHours - buffer;
+        const capacity = Math.max(0, periodCapacity - absHours);
 
         let allocated = 0;
-        const weekAllocations: WeekAllocation[] = [];
+        const periodAllocations: WeekAllocation[] = [];
 
         for (const alloc of resource.allocations) {
           const aStart = new Date(alloc.startDate);
           const aEnd = new Date(alloc.endDate);
-          if (aStart <= wEnd && aEnd >= wStart) {
+          if (aStart <= pEnd && aEnd >= pStart) {
             const days = decimalToNumber(alloc.allocatedEffortDays);
-            const totalWeeks = Math.max(
-              1,
-              Math.ceil(
-                (aEnd.getTime() - aStart.getTime()) /
-                  (7 * 24 * 60 * 60 * 1000)
-              )
-            );
-            const hoursInWeek = (days * 8) / totalWeeks;
-            allocated += hoursInWeek;
-
-            weekAllocations.push({
-              initiativeTitle: alloc.initiative.title,
-              applicationName: alloc.initiative.application.name,
-              lockType: alloc.lockType,
-              hoursInWeek: Math.round(hoursInWeek * 10) / 10,
-              allocationId: alloc.id,
-            });
+            if (isDaily) {
+              const totalBizDays = countBusinessDays(aStart, aEnd);
+              const hoursPerDay = (days * 8) / totalBizDays;
+              allocated += hoursPerDay;
+              periodAllocations.push({
+                initiativeTitle: alloc.initiative.title,
+                applicationName: alloc.initiative.application.name,
+                lockType: alloc.lockType,
+                hoursInWeek: Math.round(hoursPerDay * 10) / 10,
+                allocationId: alloc.id,
+              });
+            } else {
+              const totalWeeks = Math.max(
+                1,
+                Math.ceil(
+                  (aEnd.getTime() - aStart.getTime()) /
+                    (7 * 24 * 60 * 60 * 1000)
+                )
+              );
+              const hoursInWeek = (days * 8) / totalWeeks;
+              allocated += hoursInWeek;
+              periodAllocations.push({
+                initiativeTitle: alloc.initiative.title,
+                applicationName: alloc.initiative.application.name,
+                lockType: alloc.lockType,
+                hoursInWeek: Math.round(hoursInWeek * 10) / 10,
+                allocationId: alloc.id,
+              });
+            }
           }
         }
 
         const saturation =
           capacity > 0 ? Math.round((allocated / capacity) * 100) : 0;
 
-        const allocableCapacity = Math.max(0, weeklyHours - buffer);
+        const allocableCapacity = Math.max(0, periodCapacity);
 
-        weekCells.push({
+        periodCells.push({
           saturation,
           capacity: Math.round(capacity * 10) / 10,
           allocableCapacity: Math.round(allocableCapacity * 10) / 10,
           allocated: Math.round(allocated * 10) / 10,
           absenceHours: Math.round(absHours * 10) / 10,
-          allocations: weekAllocations,
+          allocations: periodAllocations,
         });
       }
 
@@ -171,11 +228,11 @@ export async function GET() {
         role: param.role,
         level: param.level,
         type: resource.type,
-        weeks: weekCells,
+        weeks: periodCells,
       });
     }
 
-    return NextResponse.json({ weeks, rows });
+    return NextResponse.json({ weeks: periods, rows });
   } catch {
     return NextResponse.json({ weeks: [], rows: [] });
   }
