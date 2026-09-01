@@ -98,13 +98,13 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const weeklyHours = Number(row.ore_settimanali?.trim());
+    const weeklyHours = Number(row.ore_settimanali?.trim().replace(",", "."));
     if (!weeklyHours || weeklyHours <= 0) {
       rowErrors.push({ row: rowNum, field: "ore_settimanali", message: "Ore settimanali non valide" });
       continue;
     }
 
-    const dailyCost = Number(row.costo_giornata?.trim());
+    const dailyCost = Number(row.costo_giornata?.trim().replace(",", "."));
     if (isNaN(dailyCost) || dailyCost < 0) {
       rowErrors.push({ row: rowNum, field: "costo_giornata", message: "Costo giornata non valido" });
       continue;
@@ -133,9 +133,9 @@ export async function POST(request: NextRequest) {
       level,
       weeklyHours,
       dailyCost,
-      productivityCoeff: Number(row.coefficiente_produttivita?.trim()) || 1,
+      productivityCoeff: Number(row.coefficiente_produttivita?.trim().replace(",", ".")) || 1,
       weeklyHoursBuffer: row.buffer_ore_settimanali?.trim()
-        ? Number(row.buffer_ore_settimanali.trim())
+        ? Number(row.buffer_ore_settimanali.trim().replace(",", "."))
         : null,
       validFrom: new Date(validFromStr),
       validTo,

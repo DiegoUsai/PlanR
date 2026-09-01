@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const hours = parseFloat(row.ore_assenza?.trim());
+    const hours = parseFloat(row.ore_assenza?.trim().replace(",", "."));
     if (isNaN(hours) || hours <= 0 || hours > 24) {
       rowErrors.push({ row: rowNum, field: "ore_assenza", message: `Ore non valide: "${row.ore_assenza}"` });
       continue;
