@@ -75,6 +75,7 @@ export async function GET() {
     interface WeekCell {
       saturation: number;
       capacity: number;
+      allocableCapacity: number;
       allocated: number;
       absenceHours: number;
       allocations: WeekAllocation[];
@@ -152,9 +153,12 @@ export async function GET() {
         const saturation =
           capacity > 0 ? Math.round((allocated / capacity) * 100) : 0;
 
+        const allocableCapacity = Math.max(0, weeklyHours - buffer);
+
         weekCells.push({
           saturation,
           capacity: Math.round(capacity * 10) / 10,
+          allocableCapacity: Math.round(allocableCapacity * 10) / 10,
           allocated: Math.round(allocated * 10) / 10,
           absenceHours: Math.round(absHours * 10) / 10,
           allocations: weekAllocations,

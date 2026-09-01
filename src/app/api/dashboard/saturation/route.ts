@@ -120,8 +120,8 @@ export async function GET() {
           totalSaturation += sat;
           saturationCount++;
           if (sat < 75) distribution.under++;
-          else if (sat <= 85) distribution.optimal++;
-          else if (sat <= 90) distribution.warning++;
+          else if (sat <= 100) distribution.optimal++;
+          else if (sat <= 110) distribution.warning++;
           else distribution.over++;
         }
       }

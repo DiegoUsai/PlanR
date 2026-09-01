@@ -19,6 +19,8 @@ import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
 import GridViewOutlined from "@mui/icons-material/GridViewOutlined";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
+import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
+import { signOut } from "next-auth/react";
 
 const DRAWER_WIDTH = 220;
 
@@ -73,40 +75,61 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Typography>
         </Box>
         <Divider sx={{ borderColor: "rgba(255,255,255,0.12)" }} />
-        <List sx={{ px: 1, pt: 1 }}>
-          {NAV_ITEMS.map((item) => {
-            const active =
-              item.path === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.path);
-            return (
-              <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  component={Link}
-                  href={item.path}
-                  selected={active}
-                  sx={{
-                    borderRadius: 1,
-                    color: "white",
-                    "&.Mui-selected": {
-                      bgcolor: "rgba(255,255,255,0.15)",
-                      "&:hover": { bgcolor: "rgba(255,255,255,0.2)" },
-                    },
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    sx={{ "& .MuiListItemText-primary": { fontSize: 14 } }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-        </List>
+        <Box sx={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
+          <List sx={{ px: 1, pt: 1 }}>
+            {NAV_ITEMS.map((item) => {
+              const active =
+                item.path === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(item.path);
+              return (
+                <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    component={Link}
+                    href={item.path}
+                    selected={active}
+                    sx={{
+                      borderRadius: 1,
+                      color: "white",
+                      "&.Mui-selected": {
+                        bgcolor: "rgba(255,255,255,0.15)",
+                        "&:hover": { bgcolor: "rgba(255,255,255,0.2)" },
+                      },
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      sx={{ "& .MuiListItemText-primary": { fontSize: 14 } }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+          <Box sx={{ mt: "auto", px: 1, pb: 2 }}>
+            <Divider sx={{ borderColor: "rgba(255,255,255,0.12)", mb: 1 }} />
+            <ListItemButton
+              onClick={() => signOut({ callbackUrl: "/signin" })}
+              sx={{
+                borderRadius: 1,
+                color: "white",
+                "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+              }}
+            >
+              <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
+                <LogoutOutlined />
+              </ListItemIcon>
+              <ListItemText
+                primary="Esci"
+                sx={{ "& .MuiListItemText-primary": { fontSize: 14 } }}
+              />
+            </ListItemButton>
+          </Box>
+        </Box>
       </Drawer>
       <Box
         component="main"

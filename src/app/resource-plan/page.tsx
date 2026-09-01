@@ -29,15 +29,15 @@ const SAT_COLORS = {
 
 function getSatColor(val: number): string {
   if (val < 75) return SAT_COLORS.under;
-  if (val <= 85) return SAT_COLORS.optimal;
-  if (val <= 90) return SAT_COLORS.warning;
+  if (val <= 100) return SAT_COLORS.optimal;
+  if (val <= 110) return SAT_COLORS.warning;
   return SAT_COLORS.over;
 }
 
 function getSatLabel(val: number): string {
   if (val < 75) return "Sotto-utilizzo";
-  if (val <= 85) return "Ottimale";
-  if (val <= 90) return "Attenzione";
+  if (val <= 100) return "Ottimale";
+  if (val <= 110) return "Attenzione";
   return "Sovra-allocazione";
 }
 
@@ -60,6 +60,7 @@ interface WeekAllocation {
 interface WeekCell {
   saturation: number;
   capacity: number;
+  allocableCapacity: number;
   allocated: number;
   absenceHours: number;
   allocations: WeekAllocation[];
@@ -87,6 +88,7 @@ interface DisplayColumn {
 interface DisplayCell {
   saturation: number;
   capacity: number;
+  allocableCapacity: number;
   allocated: number;
   absenceHours: number;
   allocations: WeekAllocation[];
@@ -118,6 +120,7 @@ function aggregateToMonths(
   for (const { col, cells: wCells } of monthMap.values()) {
     columns.push(col);
     const totalCapacity = wCells.reduce((s, c) => s + c.capacity, 0);
+    const totalAllocable = wCells.reduce((s, c) => s + c.allocableCapacity, 0);
     const totalAllocated = wCells.reduce((s, c) => s + c.allocated, 0);
     const totalAbsence = wCells.reduce((s, c) => s + c.absenceHours, 0);
 
@@ -136,6 +139,7 @@ function aggregateToMonths(
     cells.push({
       saturation: totalCapacity > 0 ? Math.round((totalAllocated / totalCapacity) * 100) : 0,
       capacity: Math.round(totalCapacity * 10) / 10,
+      allocableCapacity: Math.round(totalAllocable * 10) / 10,
       allocated: Math.round(totalAllocated * 10) / 10,
       absenceHours: Math.round(totalAbsence * 10) / 10,
       allocations: [...mergedAllocs.values()],
@@ -250,13 +254,19 @@ export default function ResourcePlanPage() {
         {/* Legend */}
         <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", ml: "auto" }}>
           {[
+            { color: "#BDBDBD", label: "Assenze", hatched: true },
             { color: SAT_COLORS.under, label: "< 75%" },
-            { color: SAT_COLORS.optimal, label: "75-85%" },
-            { color: SAT_COLORS.warning, label: "86-90%" },
-            { color: SAT_COLORS.over, label: "> 90%" },
+            { color: SAT_COLORS.optimal, label: "75-100%" },
+            { color: SAT_COLORS.warning, label: "101-110%" },
+            { color: SAT_COLORS.over, label: "> 110%" },
           ].map((item) => (
             <Box key={item.label} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Box sx={{ width: 12, height: 12, borderRadius: 0.5, bgcolor: item.color }} />
+              <Box sx={{
+                width: 12, height: 12, borderRadius: 0.5, bgcolor: item.color,
+                ...("hatched" in item && item.hatched ? {
+                  backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.4) 2px, rgba(255,255,255,0.4) 4px)",
+                } : {}),
+              }} />
               <Typography variant="caption">{item.label}</Typography>
             </Box>
           ))}
@@ -397,28 +407,59 @@ export default function ResourcePlanPage() {
                               flexShrink: 0,
                               mx: 0.25,
                               borderRadius: 0.5,
-                              bgcolor: getSatColor(cell.saturation),
-                              opacity:
-                                cell.saturation === 0
-                                  ? 0.1
-                                  : 0.25 + (Math.min(cell.saturation, 120) / 120) * 0.75,
+                              bgcolor: "#F5F5F5",
                               display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
+                              overflow: "hidden",
                               cursor: cell.allocations.length > 0 ? "pointer" : "default",
                               transition: "transform 0.1s",
+                              border: "1px solid",
+                              borderColor: "divider",
                               "&:hover": {
                                 transform:
                                   cell.allocations.length > 0 ? "scale(1.1)" : "none",
                               },
                             }}
                           >
-                            <Typography
-                              variant="caption"
-                              sx={{ fontSize: 10, color: "white", fontWeight: 600 }}
-                            >
-                              {cell.saturation}
-                            </Typography>
+                            {(() => {
+                              const total = cell.allocableCapacity || 1;
+                              const absPct = Math.min((cell.absenceHours / total) * 100, 100);
+                              const allocPct = Math.min((cell.allocated / total) * 100, 100 - absPct);
+                              return (
+                                <>
+                                  {absPct > 0 && (
+                                    <Box
+                                      sx={{
+                                        width: `${absPct}%`,
+                                        height: "100%",
+                                        bgcolor: "#BDBDBD",
+                                        backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.4) 2px, rgba(255,255,255,0.4) 4px)",
+                                      }}
+                                    />
+                                  )}
+                                  {allocPct > 0 && (
+                                    <Box
+                                      sx={{
+                                        width: `${allocPct}%`,
+                                        height: "100%",
+                                        bgcolor: getSatColor(cell.saturation),
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      {allocPct > 20 && (
+                                        <Typography
+                                          variant="caption"
+                                          sx={{ fontSize: 9, color: "white", fontWeight: 600 }}
+                                        >
+                                          {cell.saturation}%
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </Box>
                         </Tooltip>
                       ))}

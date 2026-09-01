@@ -401,8 +401,8 @@ model BUConfiguration {
   annualBudget          Decimal? @db.Decimal(14, 2)
   weeklyHoursBuffer     Decimal  @db.Decimal(5, 2) @default(8.00)
   saturationMin         Int      @default(75)
-  saturationMax         Int      @default(85)
-  saturationAlarm       Int      @default(90)
+  saturationMax         Int      @default(100)
+  saturationAlarm       Int      @default(110)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

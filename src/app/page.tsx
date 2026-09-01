@@ -27,8 +27,8 @@ const SAT_COLORS = {
 
 function getSatColor(val: number): string {
   if (val < 75) return SAT_COLORS.under;
-  if (val <= 85) return SAT_COLORS.optimal;
-  if (val <= 90) return SAT_COLORS.warning;
+  if (val <= 100) return SAT_COLORS.optimal;
+  if (val <= 110) return SAT_COLORS.warning;
   return SAT_COLORS.over;
 }
 
@@ -271,9 +271,9 @@ function OverviewTab({ overview }: { overview: OverviewData | null }) {
                 label={
                   overview.avgSaturation < 75
                     ? "Sotto-utilizzo"
-                    : overview.avgSaturation <= 85
+                    : overview.avgSaturation <= 100
                       ? "Ottimale"
-                      : overview.avgSaturation <= 90
+                      : overview.avgSaturation <= 110
                         ? "Attenzione"
                         : "Sovra-allocazione"
                 }
@@ -345,9 +345,9 @@ function SaturationTab({ saturation }: { saturation: SaturationData | null }) {
 
   const distData = [
     { id: 0, value: saturation.distribution.under, label: "< 75%", color: SAT_COLORS.under },
-    { id: 1, value: saturation.distribution.optimal, label: "75-85%", color: SAT_COLORS.optimal },
-    { id: 2, value: saturation.distribution.warning, label: "86-90%", color: SAT_COLORS.warning },
-    { id: 3, value: saturation.distribution.over, label: "> 90%", color: SAT_COLORS.over },
+    { id: 1, value: saturation.distribution.optimal, label: "75-100%", color: SAT_COLORS.optimal },
+    { id: 2, value: saturation.distribution.warning, label: "101-110%", color: SAT_COLORS.warning },
+    { id: 3, value: saturation.distribution.over, label: "> 110%", color: SAT_COLORS.over },
   ];
 
   return (
@@ -388,9 +388,9 @@ function SaturationTab({ saturation }: { saturation: SaturationData | null }) {
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               {[
                 { color: SAT_COLORS.under, label: "Sotto-utilizzo", range: "0-74%" },
-                { color: SAT_COLORS.optimal, label: "Ottimale", range: "75-85%" },
-                { color: SAT_COLORS.warning, label: "Attenzione", range: "86-90%" },
-                { color: SAT_COLORS.over, label: "Sovra-allocazione", range: "> 90%" },
+                { color: SAT_COLORS.optimal, label: "Ottimale", range: "75-100%" },
+                { color: SAT_COLORS.warning, label: "Attenzione", range: "101-110%" },
+                { color: SAT_COLORS.over, label: "Sovra-allocazione", range: "> 110%" },
               ].map((item) => (
                 <Box key={item.label} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Box

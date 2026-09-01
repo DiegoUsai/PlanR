@@ -40,7 +40,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
   today.setHours(0, 0, 0, 0);
 
   const config = await prisma.bUConfiguration.findFirst();
-  const saturationAlarm = config?.saturationAlarm ?? 90;
+  const saturationAlarm = config?.saturationAlarm ?? 110;
   const annualBudget = config ? decimalToNumber(config.annualBudget) : 0;
 
   const horizonEnd = new Date(today);
@@ -326,7 +326,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
 
   // --- Strategic alerts ---
 
-  // Profilo saturo: tutte risorse di un profilo > 85% per 4 settimane
+  // Profilo saturo: tutte risorse di un profilo > 100% per 4 settimane
   const roleGroups = new Map<string, typeof resources>();
   for (const r of resources) {
     const currentP = r.parameters.find((p) => {
