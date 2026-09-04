@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createInitiativeSchema } from "@/lib/validators/initiative";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -18,40 +17,11 @@ export async function GET(request: NextRequest) {
     include: {
       application: true,
       contract: true,
-      module: true,
+      modules: true,
       _count: { select: { allocations: true } },
     },
     orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json(initiatives);
-}
-
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const parsed = createInitiativeSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Dati non validi", details: parsed.error.flatten() },
-      { status: 400 }
-    );
-  }
-
-  const {
-    desiredStartDate,
-    desiredEndDate,
-    ...data
-  } = parsed.data;
-
-  const initiative = await prisma.initiative.create({
-    data: {
-      ...data,
-      desiredStartDate: desiredStartDate ? new Date(desiredStartDate) : null,
-      desiredEndDate: desiredEndDate ? new Date(desiredEndDate) : null,
-    },
-    include: { application: true, contract: true, module: true },
-  });
-
-  return NextResponse.json(initiative, { status: 201 });
 }

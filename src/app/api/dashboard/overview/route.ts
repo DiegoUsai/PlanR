@@ -105,23 +105,25 @@ export async function GET() {
     const avgSaturation =
       satCount > 0 ? Math.round(totalSat / satCount) : 0;
 
-    // Pipeline value: sum of economic values from non-completed initiatives
-    const valueMap: Record<string, number> = {
-      LT_5K: 2500,
-      DA_5K_A_10K: 7500,
-      DA_10K_A_15K: 12500,
-      DA_15K_A_20K: 17500,
-      DA_20K_A_30K: 25000,
-      DA_30K_A_40K: 35000,
-      GT_40K: 45000,
-    };
+    function parseEconomicValue(val: string | null): number {
+      if (!val) return 0;
+      const v = val.toLowerCase().replace(/\s/g, "");
+      if (v.includes(">40") || v.includes(">40")) return 45000;
+      if (v.includes("30") && v.includes("40")) return 35000;
+      if (v.includes("20") && v.includes("30")) return 25000;
+      if (v.includes("15") && v.includes("20")) return 17500;
+      if (v.includes("10") && v.includes("15")) return 12500;
+      if (v.includes("5") && v.includes("10")) return 7500;
+      if (v.includes("<5") || v.includes("< 5")) return 2500;
+      return 0;
+    }
 
     let pipelineValue = 0;
     const pipelineByStatus: Record<string, number> = {};
     for (const init of initiatives) {
-      if (init.status === "COMPLETATO" || init.status === "FUORI_SCOPE")
+      if (init.status === "COMPLETATO" || init.status === "REJECTED")
         continue;
-      const val = init.economicValue ? valueMap[init.economicValue] ?? 0 : 0;
+      const val = parseEconomicValue(init.economicValue);
       pipelineValue += val;
       pipelineByStatus[init.status] =
         (pipelineByStatus[init.status] ?? 0) + val;

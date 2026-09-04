@@ -3,8 +3,8 @@
 |  |  |
 | :---- | :---- |
 | **Autore** | Diego Usai — BU Manager |
-| **Versione** | Draft v2.1 |
-| **Data** | 31 agosto 2026 |
+| **Versione** | Draft v2.6 |
+| **Data** | 3 settembre 2026 |
 | **Stato** | Bozza di lavoro |
 | **Documento di riferimento** | [[BU_Documentale_SAP_Demand_Resource_Management_Draft]] (Draft v3, 6 luglio 2026) |
 
@@ -68,7 +68,7 @@ L'applicazione ha due profili utente con viste e permessi distinti. Entrambi i p
 - gestire il **soft lock** delle risorse in attesa di approvazione contrattuale
 - importare i dati di assenza da **Factorial**
 - visualizzare le **dashboard** operative settimanali
-- ricevere gli **alert** automatici (sovra-allocazione, scadenza soft lock, richieste in "Ready — Pending Resources" da più di due settimane)
+- ricevere gli **alert** automatici (sovra-allocazione, scadenza soft lock, iniziative in "Pending Resources" da più di due settimane)
 
 **Permessi:** lettura e scrittura su tutti i dati del Resource Plan. Configurazione degli alert. Import dati.
 
@@ -136,6 +136,7 @@ Rappresenta un contratto attivo con un cliente, legato a uno o più applicativi.
 | :---- | :---- | :---- |
 | **id** | UUID | Identificativo univoco |
 | **identificativo** | Stringa | Codice identificativo del contratto (riferimento amministrativo) |
+| **id_contratto_jira** | Stringa (nullable) | Identificativo del contratto usato su Jira (campo "Contratti BU DOC"). Chiave di match per l'import CSV delle iniziative. Se un'iniziativa importata ha un valore di "Contratti BU DOC" che non corrisponde a nessun `id_contratto_jira` censito, il sistema genera un alert |
 | **tipo** | Enum | Subappalto, Appalto |
 | **cliente** | FK → Cliente | Cliente di riferimento del contratto. Selezionabile da elenco controllato con possibilità di creazione inline |
 | **importo** | Decimale | Importo complessivo del contratto in euro |
@@ -149,37 +150,101 @@ Rappresenta un contratto attivo con un cliente, legato a uno o più applicativi.
 
 #### Iniziativa
 
-Rappresenta un intervento (MEV, MAD o altro) su un applicativo, nel perimetro di un contratto. Corrisponde all'**epica Jira** nel processo di Demand Management.
+Rappresenta un intervento (MEV, MAD o altro) su un applicativo, nel perimetro di un contratto. Corrisponde all'**epica Jira** nel processo di Demand Management. Le iniziative vengono importate esclusivamente tramite **import CSV** da Jira (sezione 13.8): i dati **non sono modificabili** dall'utente nell'applicazione e le iniziative **non possono essere cancellate**.
 
-| Campo | Tipo | Note |
+| Campo | Tipo | Origine | Note |
+| :---- | :---- | :---- | :---- |
+| **id** | UUID | Sistema | Identificativo univoco interno |
+| **issue_key** | Stringa | CSV: Issue key | Chiave dell'epica Jira (es. `DBD-29`). Chiave di match per il re-import |
+| **issue_id** | Intero | CSV: Issue id | Identificativo numerico Jira |
+| **applicativo** | FK → Applicativo | CSV: Progetto BU DOC | Match per nome con l'anagrafica applicativi (es. SIBARDOC, SardegnaCAT, MIT, SIBARDEC) |
+| **contratto** | FK → Contratto (nullable) | CSV: Contratti BU DOC | Match per `id_contratto_jira` sull'entità Contratto. Se il valore non corrisponde a nessun contratto censito, viene generato un alert (sezione 8.1) |
+| **componenti** | Stringa (nullable) | CSV: Components | Componente Jira (es. "Sibar DOC - Conservazione", "Modulo MIT"). Valore testuale importato così com'è |
+| **titolo** | Stringa | CSV: Summary | Titolo dell'iniziativa |
+| **descrizione** | Testo (nullable) | CSV: Description | Descrizione dell'intervento (può essere multilinea) |
+| **tipologia** | Stringa (nullable) | CSV: Service Type | Tipologia di intervento così come estratta da Jira (es. "Consumo/Misura -> MEV"). Può essere vuota |
+| **priorita** | Enum | CSV: Priority | Highest, High, Medium, Low, Lowest (valori Jira) |
+| **data_fine_desiderata** | Data (nullable) | CSV: Due date | Data di consegna desiderata. Formato Jira: `DD/Mon/YY HH:MM AM/PM` (es. "31/Jul/26 12:00 AM"), convertita in data |
+| **data_inizio_pianificata** | Data | Sistema | Data di inizio calcolata dall'applicazione |
+| **data_fine_pianificata** | Data | Sistema | Data di fine calcolata |
+| **stima_gg** | Decimale (nullable) | CSV: Original estimate | Stima in giorni/uomo, calcolata da Jira Original Estimate (in secondi) ÷ 28800 (8 ore/giorno). Può essere vuota se Jira non ha una stima |
+| **valore_economico** | Stringa (nullable) | CSV: Valore economico stimato | Valore così come estratto da Jira (es. "30k - 40k", "> 40k", "5k - 10k"). Può essere vuoto |
+| **richiedente** | Stringa (nullable) | CSV: Richiedente | Persona o ente che ha richiesto l'intervento |
+| **data_richiesta** | Data (nullable) | CSV: Data richiesta | Data in cui la richiesta è stata formalizzata |
+| **tenant** | Stringa (nullable) | CSV: Tenant | Tenant di riferimento (es. "Tutti", "RAS", "ASPAL", "FORESTAS") |
+| **corsia_urgenza** | Stringa (nullable) | CSV: Corsia d'urgenza | Motivazione dell'urgenza (es. "Scadenza normativa", "Integrazione sistema terzo"). "No" equivale a nessuna urgenza |
+| **engineering_excellence** | Stringa (nullable) | CSV: Engineering Excellence (.1, .2) | Coinvolgimenti EE, concatenati con virgola se multipli (es. "AI, DevEx, UI/UX"). "No" equivale a nessun coinvolgimento |
+| **sizing_sviluppo** | Stringa (nullable) | CSV: Sizing Sviluppo | Taglia di sizing sviluppo (es. "M (15 - 50 gg)", "L (50 - 150 gg)") |
+| **polarita_sizing_sviluppo** | Stringa (nullable) | CSV: Polarità Sizing Sviluppo | Polarità del sizing sviluppo |
+| **sizing_analisi** | Stringa (nullable) | CSV: Sizing Analisi | Taglia di sizing analisi |
+| **polarita_sizing_analisi** | Stringa (nullable) | CSV: Polarità Sizing Analisi | Polarità del sizing analisi |
+| **affidabilita_stima** | Stringa (nullable) | CSV: Affidabilità della stima | Indicatore di affidabilità della stima |
+| **analisi_ptf** | Stringa (nullable) | CSV: Analisi PTF | Risultato dell'analisi PTF |
+| **figure_necessarie** | Testo (nullable) | CSV: Figure necessarie | Fabbisogno di figure professionali |
+| **vincoli_criticita** | Testo (nullable) | CSV: Vincoli e/o criticità | Note su vincoli e criticità |
+| **in_riuso_da** | Stringa (nullable) | CSV: In riuso da | Progetto da cui l'iniziativa è in riuso |
+| **stato_jira** | Stringa | CSV: Status | Stato originale dell'epica Jira (es. "Stimato", "Approvato", "Rejected", "To Do", "Studio fattibilità", "Pronta per la stima") |
+| **status** | Enum | Sistema | Stato interno calcolato dalla macchina a stati (sezione successiva) |
+| **note** | Testo (nullable) | Sistema | Unico campo modificabile dall'utente: note libere del D&R Manager |
+
+> **Dati non modificabili:** tutti i campi importati da CSV sono **di sola lettura** nell'interfaccia utente. L'unico campo editabile dall'utente è `note`. Gli aggiornamenti ai dati dell'iniziativa avvengono esclusivamente tramite re-import CSV.
+
+##### Macchina a stati dell'iniziativa
+
+Le iniziative entrano nel sistema tramite **import CSV** (sezione 13.8). Lo `stato_jira` determina lo stato interno. Le transizioni avvengono in parte da import e in parte su azione del D&R Manager (allocazioni).
+
+**Mapping stato Jira → stato interno:**
+
+| Stato Jira | Stato interno | Descrizione |
 | :---- | :---- | :---- |
-| **id** | UUID | Identificativo univoco |
-| **codice** | Stringa | Codice identificativo dell'iniziativa, visibile in tutte le viste e usato come riferimento rapido (es. `INI-001`, `MEV-2026-015`). Generato automaticamente o inserito manualmente |
-| **applicativo** | FK → Applicativo | |
-| **modulo** | FK → Modulo (nullable) | Modulo dell'applicativo interessato dall'iniziativa. Se valorizzato, consente il tracciamento delle competenze a livello di modulo; se non valorizzato, la competenza viene tracciata a livello di applicativo |
-| **contratto** | FK → Contratto | Contratto di riferimento |
-| **id_jira_epica** | Stringa | Chiave dell'epica Jira collegata |
-| **titolo** | Stringa | Titolo dell'iniziativa |
-| **descrizione** | Testo | Descrizione dell'intervento |
-| **tipologia** | Enum | MEV, MAD |
-| **priorita** | Enum | Alta, Media, Bassa |
-| **data_inizio_desiderata** | Data | Data di inizio desiderata |
-| **data_fine_desiderata** | Data | Data di consegna desiderata (indicata dal PM nell'epica — sezione 17.2 del Draft) |
-| **data_inizio_pianificata** | Data | Data di inizio calcolata dall'applicazione (formula sezione 7 del Draft) |
-| **data_fine_pianificata** | Data | Data di fine calcolata |
-| **stima_gg** | Decimale | Stima complessiva in giorni/uomo (sviluppo + analisi/test) |
-| **figure_necessarie** | Testo | Descrizione del fabbisogno di figure professionali (es. "2 FE, 1 BE, 1 Analista"). Campo testuale, strutturabile in futuro |
-| **status** | Enum | In Attesa di Allocazione, Allocato, In Lavorazione, Completato, Ready — Pending Resources, In Attesa di Copertura Contrattuale, Fuori Scope |
-| **taglia_sizing** | Enum | XS, S, M, L, XL (importata da Jira — sezione 6.1 del Draft) |
-| **polarita** | Enum | Prima metà, Seconda metà (importata da Jira — sezione 6.2 del Draft) |
-| **taglia_analisi_test** | Enum | A-XS, A-S, A-M, A-L (importata da Jira — sezione 6.4 del Draft) |
-| **affidabilita_stima** | Enum | Alta, Media, Bassa (importato da Jira — unifica i concetti di rischio tecnico e rischio stima delle sezioni 5.3 e 17.2 del Draft in un unico indicatore sintetico di quanto la stima è affidabile) |
-| **vincoli_criticita** | Testo | Note testuali su vincoli e/o criticità identificati dal PTF (es. dipendenze da terze parti, complessità architetturale, debito tecnico, prerequisiti non ancora soddisfatti). Campo a carico del PTF, importato da Jira |
-| **flag_riuso** | Booleano | Opportunità di riuso da altro progetto (importato da Jira) |
-| **valore_economico** | Enum | <5K, 5-10K, 10-15K, 15-20K, 20-30K, 30-40K, >40K (importato da Jira — sezione 17.2 del Draft) |
-| **note** | Testo | Note libere |
+| To Do | **To Do** | L'iniziativa è stata registrata ma non è ancora in lavorazione. Non pianificabile |
+| Studio fattibilità | **Studio Fattibilità** | L'iniziativa è in fase di analisi di fattibilità. Non pianificabile |
+| Pronta per la stima | **Pronta per la Stima** | L'iniziativa è pronta per essere stimata. Non pianificabile |
+| Stimato | **Attesa di Allocazione** | L'iniziativa è stata stimata ed è pronta per essere pianificata. Il D&R Manager può creare allocazioni con **soft lock** |
+| Approvato | **Confermato Hard Lock** | L'approvazione contrattuale è arrivata. Le allocazioni soft devono essere convertite in **hard lock** |
+| Rejected | **Rejected** | L'iniziativa è stata rifiutata. Il sistema segnala le allocazioni attive da rilasciare con **conferma manuale** del D&R Manager |
 
-> **Calcolo automatico della data di inizio pianificata:** l'applicazione calcola `data_inizio_pianificata = data_fine_desiderata − effort_pianificato`, dove l'**effort pianificato** è derivato dalla stima in giorni applicando il buffer differenziato per taglia e polarità definito nella sezione 7.2 del Draft (20% per XS/S/M, 30% per L/XL), con il tetto di range e la regola di ri-tag.
+**Stati interni calcolati (non derivati da Jira):**
+
+| Stato interno | Condizione |
+| :---- | :---- |
+| **Allocato Soft Lock** | Almeno un'allocazione soft lock copre l'intero `stima_gg` |
+| **Pending Resources** | Le allocazioni (soft o hard) non coprono l'intero `stima_gg` |
+| **Completato** | Raggiunta la `data_fine` dell'ultima allocazione attiva |
+
+> **Stati non pianificabili:** le iniziative in stato To Do, Studio Fattibilità e Pronta per la Stima sono visibili nel sistema ma il D&R Manager **non può creare allocazioni** su di esse. Diventano pianificabili solo quando lo stato Jira passa a "Stimato" (o superiore) tramite re-import CSV.
+
+**Transizioni:**
+
+```
+To Do / Studio Fattibilità / Pronta per la Stima
+    → Attesa di Allocazione              (re-import CSV con stato Jira "Stimato")
+    → Confermato Hard Lock               (re-import CSV con stato Jira "Approvato")
+    → Rejected                           (re-import CSV con stato Jira "Rejected")
+
+Attesa di Allocazione
+    → Allocato Soft Lock                 (allocazioni soft coprono stima_gg)
+    → Pending Resources                  (allocazioni soft non coprono stima_gg)
+
+Allocato Soft Lock
+    → Confermato Hard Lock               (re-import CSV con stato Jira "Approvato")
+    → Pending Resources                  (allocazione rimossa/ridotta)
+    → Rejected                           (re-import CSV con stato Jira "Rejected")
+
+Confermato Hard Lock
+    → Completato                         (data_fine ultima allocazione raggiunta)
+    → Pending Resources                  (allocazione rimossa/ridotta)
+
+Pending Resources
+    → Allocato Soft Lock                 (allocazioni soft coprono stima_gg)
+    → Confermato Hard Lock               (allocazioni hard coprono stima_gg)
+
+Qualsiasi stato → Rejected              (re-import CSV con stato Jira "Rejected")
+```
+
+> **Re-import:** quando un'iniziativa già presente nel sistema (match per `issue_key`) viene re-importata tramite CSV, i dati vengono aggiornati. Se l'aggiornamento introduce **anomalie** (variazione della stima, cambio delle date, cambio di priorità o tipologia), l'aggiornamento viene **bloccato** e richiede la **conferma del D&R Manager** prima di essere applicato. Il sistema evidenzia le differenze tra i dati esistenti e quelli importati (sezione 13.8).
+
+> **Rejected con allocazioni attive:** quando un'iniziativa passa a Rejected e ha allocazioni attive (soft o hard lock), il sistema non le rilascia automaticamente. Viene generato un alert che elenca le allocazioni da rilasciare e il D&R Manager le rilascia manualmente, una per una o in blocco, dopo aver verificato l'impatto sulla pianificazione.
 
 #### Risorsa
 
@@ -256,7 +321,7 @@ Assegnazione di una **Risorsa** a un'**Iniziativa** per un periodo specifico. È
 | **data_inizio** | Data | Data di inizio dell'allocazione. **Input del D&R Manager** |
 | **data_fine** | Data | Data di fine dell'allocazione. **Input del D&R Manager** |
 | **effort_allocato_gg** | Decimale | Giorni/uomo allocati per questa risorsa su questa iniziativa. **Calcolato automaticamente:** `giorni_lavorativi(data_inizio, data_fine) × percentuale_allocazione / 100`. Non inserito manualmente |
-| **ruolo_nell_iniziativa** | Enum | Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect — stessa enum del campo `ruolo` dell'entità Parametro risorsa. Indica quale ruolo ricopre la risorsa in questa specifica iniziativa (può coincidere con il ruolo principale o differire) |
+| **ruolo_nell_iniziativa** | Enum | Stessa enum del campo `ruolo` dell'entità Parametro risorsa (Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect). Indica quale ruolo ricopre la risorsa in questa specifica iniziativa (può coincidere con il ruolo principale o differire) |
 | **affiancamento** | Booleano | Se true, questa allocazione è una leva di crescita (sezione 8.2 del Draft): la risorsa lavora sull'iniziativa in affiancamento con un senior o viceversa |
 | **is_senior_affiancamento** | Booleano | Se true e `affiancamento = true`, questa allocazione è il senior che affianca (la risorsa affianca un junior sulla stessa iniziativa) |
 | **note** | Testo | Note libere |
@@ -400,9 +465,11 @@ Fotografia dei dati aggregati per alimentare i grafici di trend nelle dashboard.
 | **saturazione_media_bu** | Decimale | Saturazione media della BU alla data |
 | **risorse_per_fascia** | JSON | Distribuzione risorse per fascia di saturazione |
 | **pipeline_value_soft_lock** | Decimale | Valore totale in soft lock alla data |
-| **richieste_pending_resources** | Intero | Numero di iniziative in stato "Ready — Pending Resources" |
+| **richieste_pending_resources** | Intero | Numero di iniziative in stato "Pending Resources" |
 
-#### Audit log
+#### Audit log *(post-MVP)*
+
+> **Scope:** questa funzionalità è prevista per una fase successiva al MVP. L'entità e la logica sono specificate qui per completezza ma non saranno implementate nella prima versione.
 
 Registro di tutte le operazioni di modifica effettuate nell'applicazione. Ogni azione che crea, modifica o cancella un'entità genera automaticamente un record di audit. L'audit log è consultabile dalla sezione **Impostazioni** (sezione 11.2).
 
@@ -453,16 +520,15 @@ erDiagram
 
 ### 4.2 Dati importati
 
-| Dato Jira | Campo destinazione | Frequenza di sincronizzazione |
+| Dato Jira | Campo destinazione | Canale di import |
 | :---- | :---- | :---- |
-| **Epiche con stato "Proceed"** | Iniziativa (creazione o aggiornamento) | Giornaliera o su richiesta |
-| **Stato dell'epica** | Iniziativa.status | Giornaliera |
-| **Worklog** (stimato e consuntivato per epica) | Dati per il calcolo dell'accuratezza delle stime | Giornaliera |
-| **Priorità dell'epica** | Iniziativa.priorita | Giornaliera |
-| **Data di consegna desiderata** (Due Date) | Iniziativa.data_fine_desiderata | Giornaliera |
-| **Taglia sizing** | Iniziativa.taglia_sizing | Al momento della sincronizzazione iniziale |
-| **Valore economico stimato** | Iniziativa.valore_economico | Giornaliera |
-| **Stato "Preventivo Inviato"** | Trigger per attivazione soft lock sull'iniziativa | Giornaliera |
+| **Epiche stimate/approvate/rejected** | Iniziativa (creazione o aggiornamento) | Import CSV iniziative (sezione 13.8) |
+| **Stato dell'epica** (Stimato, Approvato, Rejected) | Iniziativa.status (secondo macchina a stati sezione 3.1) | Import CSV iniziative |
+| **Worklog** (stimato e consuntivato per epica) | Dati per il calcolo dell'accuratezza delle stime | Import CSV consuntivo |
+| **Priorità dell'epica** | Iniziativa.priorita | Import CSV iniziative |
+| **Data di consegna desiderata** (Due Date) | Iniziativa.data_fine_desiderata | Import CSV iniziative |
+| **Taglia sizing** | Iniziativa.taglia_sizing | Import CSV iniziative |
+| **Valore economico stimato** | Iniziativa.valore_economico | Import CSV iniziative |
 
 ### 4.3 Mapping dei campi Jira
 
@@ -590,24 +656,26 @@ Il calcolo è disponibile anche a livello di singola risorsa per iniziativa, con
 
 ### 7.0 Operazioni CRUD e regole di cancellazione
 
-Tutte le entità del modello dati sono **modificabili** e **cancellabili** dal D&R Manager (o dal BU Manager per le entità di sua competenza). La cancellazione segue una regola uniforme: **nessuna cancellazione a cascata**. Se un'entità ha record collegati in altre entità, l'applicazione **blocca la cancellazione** e mostra l'elenco delle dipendenze che impediscono l'operazione.
+Le entità anagrafiche (Cliente, Applicativo, Modulo, Contratto, Risorsa) e operative (Allocazione, Parametro risorsa, Assenza, Consuntivo) sono **modificabili** e **cancellabili** dal D&R Manager (o dal BU Manager per le entità di sua competenza). Le **Iniziative** sono l'eccezione: vengono importate esclusivamente da CSV Jira (sezione 13.8), i loro dati **non sono modificabili** dall'utente (unico campo editabile: `note`) e **non possono essere cancellate**.
 
-| Entità | Bloccata se esistono... |
-| :---- | :---- |
-| **Cliente** | Contratti collegati |
-| **Applicativo** | Iniziative, Moduli o Contratti collegati |
-| **Modulo** | Iniziative che lo referenziano |
-| **Contratto** | Iniziative che lo referenziano |
-| **Iniziativa** | Allocazioni o record di Consuntivo collegati |
-| **Risorsa** | Allocazioni, Parametri risorsa, Assenze o record di Consuntivo collegati |
-| **Allocazione** | Nessuna dipendenza — cancellabile liberamente |
-| **Parametro risorsa** | Nessuna dipendenza — cancellabile liberamente (il sistema ricalcola sulla base dei parametri restanti) |
-| **Assenza** | Nessuna dipendenza — cancellabile liberamente |
-| **Consuntivo** | Nessuna dipendenza — cancellabile liberamente |
+La cancellazione delle entità cancellabili segue una regola uniforme: **nessuna cancellazione a cascata**. Se un'entità ha record collegati, l'applicazione **blocca la cancellazione** e mostra l'elenco delle dipendenze.
+
+| Entità | Modificabile | Cancellabile | Bloccata se esistono... |
+| :---- | :---- | :---- | :---- |
+| **Cliente** | Sì | Sì | Contratti collegati |
+| **Applicativo** | Sì | Sì | Iniziative, Moduli o Contratti collegati |
+| **Modulo** | Sì | Sì | Iniziative che lo referenziano |
+| **Contratto** | Sì | Sì | Iniziative che lo referenziano |
+| **Iniziativa** | Solo campo `note` | **No** | — (non cancellabile; dati aggiornabili solo via re-import CSV) |
+| **Risorsa** | Sì | Sì | Allocazioni, Parametri risorsa, Assenze o record di Consuntivo collegati |
+| **Allocazione** | Sì | Sì | Nessuna dipendenza — cancellabile liberamente |
+| **Parametro risorsa** | Sì | Sì | Nessuna dipendenza — cancellabile liberamente (il sistema ricalcola sulla base dei parametri restanti) |
+| **Assenza** | Sì | Sì | Nessuna dipendenza — cancellabile liberamente |
+| **Consuntivo** | Sì | Sì | Nessuna dipendenza — cancellabile liberamente |
 
 Per rimuovere un'entità con dipendenze, il D&R Manager deve prima eliminare o riassegnare i record collegati. L'applicazione suggerisce le azioni necessarie nel messaggio di blocco (es. "Impossibile cancellare l'applicativo SibarDoc: esistono 12 iniziative collegate. Rimuovere o riassegnare le iniziative prima di procedere").
 
-> **Modifica:** la modifica di qualsiasi campo è sempre consentita. Per le entità temporalizzate (Parametro risorsa), la modifica segue la regola di non retroattività descritta nella sezione 3.1: i calcoli storici restano ancorati ai valori vigenti nel periodo originale.
+> **Modifica:** la modifica di qualsiasi campo è sempre consentita (eccetto le Iniziative, i cui dati provengono da Jira). Per le entità temporalizzate (Parametro risorsa), la modifica segue la regola di non retroattività descritta nella sezione 3.1: i calcoli storici restano ancorati ai valori vigenti nel periodo originale.
 
 ### 7.1 I tre orizzonti temporali
 
@@ -653,10 +721,9 @@ L'operatività del Resource Plan si svolge su due livelli: l'**iniziativa** (cos
 
 **Operazioni sulle iniziative:**
 
-- **Creazione da Jira** — importazione di un'epica classificata "Proceed"; i campi sizing, priorità, date, valore economico e figure necessarie vengono pre-compilati
-- **Creazione manuale** — inserimento diretto per iniziative non tracciate su Jira. Non esiste un vincolo formale tra applicativo e contratto sull'iniziativa (il D&R Manager può associare qualsiasi combinazione), ma l'interfaccia facilita la selezione con un **filtro incrociato**: se si seleziona prima l'applicativo, il menu a tendina dei contratti mostra solo i contratti associati a quell'applicativo; se si seleziona prima il contratto, il menu degli applicativi mostra solo gli applicativi associati a quel contratto. In entrambi i casi è possibile rimuovere il filtro e vedere l'elenco completo
-- **Cambio stato** — transizione di stato (In Attesa di Allocazione → Allocato → In Lavorazione → Completato). Gli stati "In attesa di copertura contrattuale" e "Fuori scope" sono impostabili in qualsiasi momento
-- **Chiusura** — completamento con registrazione della data effettiva di fine
+- **Import da CSV** — unico canale di ingresso delle iniziative nel sistema. L'importazione avviene tramite file CSV esportato da Jira (sezione 13.8). Tutti i campi dell'iniziativa (sizing, priorità, date, valore economico, stato, descrizione, ecc.) vengono importati dal file e **non sono modificabili** dall'utente nell'interfaccia. L'unico campo editabile dall'utente è `note`. Il re-import aggiorna le iniziative esistenti con blocco e conferma in caso di anomalie
+- **Nessuna creazione manuale** — le iniziative non possono essere create manualmente né cancellate dall'interfaccia. Per inserire una nuova iniziativa è necessario censirla su Jira e procedere con un nuovo import CSV
+- **Cambio stato** — le transizioni seguono la macchina a stati definita nella sezione 3.1: Attesa di Allocazione → Allocato Soft Lock → Confermato Hard Lock → Completato; Pending Resources quando l'effort non è coperto; Rejected da import CSV con rilascio allocazioni su conferma del D&R Manager
 
 **Pannello riepilogativo dell'iniziativa:** quando il D&R Manager opera sulle allocazioni di un'iniziativa, l'applicazione mostra in modo permanente un **pannello riepilogativo** con tutti i dati fondamentali dell'iniziativa, così da non dover navigare altrove per recuperare le informazioni necessarie alla pianificazione:
 
@@ -665,7 +732,7 @@ L'operatività del Resource Plan si svolge su due livelli: l'**iniziativa** (cos
 | **Titolo e applicativo** | Nome dell'iniziativa e applicativo di riferimento |
 | **Date** | Data inizio desiderata, data fine desiderata, data inizio pianificata, data fine pianificata |
 | **Stima** | Giorni/uomo totali stimati (stima_gg) |
-| **Figure necessarie** | Fabbisogno di profili professionali (es. "2 FE, 1 BE, 1 Analista") |
+| **Figure necessarie** | Fabbisogno di profili professionali (es. "2 Developer, 1 Senior Dev, 1 Analista Funzionale") |
 | **Giorni residui da allocare** | `stima_gg − Σ effort_allocato_gg di tutte le allocazioni attive`. Indica quanti giorni/uomo restano da assegnare. Se il valore è negativo, l'iniziativa è **sovra-allocata** e il pannello lo segnala visivamente (rosso) |
 | **Risorse già allocate** | Elenco delle risorse assegnate con ruolo, percentuale, periodo e tipo lock |
 | **Contratto** | Identificativo, cliente, data fine contratto |
@@ -687,8 +754,8 @@ Il conteggio dei **giorni residui** è il dato chiave per evitare sovra-allocazi
 
 Il meccanismo di prenotazione (sezione 13 del Draft) è implementato come attributo dell'**allocazione** (`tipo_lock`):
 
-- **Soft lock** — prenotazione temporanea in attesa di conferma contrattuale. Si attiva quando lo stato dell'epica su Jira passa a **"Preventivo Inviato"** (rilevato dalla sincronizzazione giornaliera) oppure manualmente dal D&R Manager. Le allocazioni soft **occupano capacità** nella vista pivot (la risorsa risulta impegnata) ma con codifica visiva distinta (tratteggio) per segnalare la provvisorietà.
-- **Hard lock** — allocazione confermata. Quando l'approvazione contrattuale arriva, il D&R Manager converte le allocazioni da soft a hard.
+- **Soft lock** — prenotazione temporanea in attesa di conferma contrattuale. Si attiva quando un'iniziativa in stato "Attesa di Allocazione" (corrispondente allo stato Jira "Stimato") riceve allocazioni dal D&R Manager. Le allocazioni soft **occupano capacità** nella vista pivot (la risorsa risulta impegnata) ma con codifica visiva distinta (tratteggio) per segnalare la provvisorietà. L'iniziativa passa a stato "Allocato Soft Lock" quando le allocazioni coprono l'intero effort stimato.
+- **Hard lock** — allocazione confermata. Quando l'approvazione contrattuale arriva (stato Jira "Approvato" nel re-import CSV), l'iniziativa passa a "Confermato Hard Lock" e il D&R Manager converte le allocazioni da soft a hard. Se l'iniziativa viene rifiutata (stato Jira "Rejected"), le allocazioni vengono rilasciate su conferma del D&R Manager.
 
 Ogni allocazione soft ha la propria **data di scadenza** (`soft_lock_scadenza` nell'entità Allocazione). Alla scadenza, l'applicazione genera un alert. Il D&R Manager può estendere la scadenza, convertire in hard o rilasciare l'allocazione liberando la risorsa. Allocazioni diverse sulla stessa iniziativa possono avere scadenze e tipi di lock differenti.
 
@@ -732,7 +799,7 @@ Le allocazioni PM automatiche:
 
 ### 7.7 Tracciamento del PTF nel Resource Plan
 
-Come stabilito nella sezione 8.4 del documento di riferimento, l'impegno dei tre membri del **Presidio Tecnico Funzionale** (sessione del mercoledì, validazioni in corso d'opera, task di approfondimento) viene tracciato nel Resource Plan come quello di qualsiasi altro profilo, con la stessa fascia di saturazione ottimale del 75-85%. L'applicazione tratta le risorse con flag `is_ptf = true` come risorse normali ai fini della saturazione, senza eccezioni.
+Come stabilito nella sezione 8.4 del documento di riferimento, l'impegno dei tre membri del **Presidio Tecnico Funzionale** (sessione del mercoledì, validazioni in corso d'opera, task di approfondimento) viene tracciato nel Resource Plan come quello di qualsiasi altro profilo, con la stessa fascia di saturazione ottimale del 75-100%. L'applicazione tratta le risorse con flag `is_ptf = true` come risorse normali ai fini della saturazione, senza eccezioni.
 
 ---
 
@@ -747,11 +814,14 @@ L'applicazione implementa un sistema di alert che segnala le situazioni che rich
 | **Sovra-allocazione** | Saturazione di una risorsa > soglia di allarme (default 110%, configurabile) per più di due settimane consecutive (sezione 8.4 del Draft) | Ribilanciare le allocazioni o segnalare al BU Manager |
 | **Sotto-utilizzo** | Saturazione di una risorsa < 50% per più di due settimane consecutive | Verificare se la risorsa può essere allocata su altre attività |
 | **Scadenza soft lock** | Data di scadenza del soft lock superata | Contattare il PM per aggiornamento; estendere o rilasciare |
-| **Ready — Pending Resources** | Iniziativa in stato "Ready — Pending Resources" da più di 2 settimane (sezione 11.4 del Draft) | Segnalare al BU Manager come problema strutturale di capacity |
+| **Pending Resources** | Iniziativa in stato "Pending Resources" da più di 2 settimane | Segnalare al BU Manager come problema strutturale di capacity |
 | **Iniziativa senza allocazioni** | Iniziativa nell'orizzonte corto (4 settimane) senza alcuna allocazione a risorse nominative | Assegnare le risorse o segnalare il gap |
 | **Prossimità scadenza contratto** | Un'allocazione ha data di fine negli ultimi 30 giorni del contratto di riferimento | Verificare con il PM se è previsto un rinnovo o se la pianificazione va compressa |
 | **Slittamento per coefficiente** | L'effort effettivo di un'allocazione (ricalcolato con il coefficiente di produttività) fa superare la data di consegna desiderata dell'iniziativa | Valutare: aumentare la percentuale di allocazione, aggiungere una seconda risorsa, o accettare il ritardo |
 | **Costo previsto > valore economico** | Il costo previsto dell'iniziativa (somma effort × costo giornata di tutte le allocazioni) supera il valore economico stimato | Verificare la sostenibilità economica con il BU Manager |
+| **Iniziativa Rejected con allocazioni** | Un'iniziativa è passata a stato "Rejected" (da import CSV) e ha allocazioni attive (soft o hard lock) | Verificare e rilasciare manualmente le allocazioni coinvolte |
+| **Anomalie re-import iniziativa** | Un re-import CSV ha rilevato variazioni sui dati di un'iniziativa esistente (stima_gg, date, priorità, tipologia) | Verificare le anomalie e confermare o rifiutare l'aggiornamento |
+| **Contratto non censito** | Un import CSV contiene un valore nel campo "Contratti BU DOC" che non corrisponde ad alcun `id_contratto_jira` tra i contratti censiti nel sistema | Censire il nuovo contratto nell'anagrafica contratti e compilare il campo `id_contratto_jira`, quindi ripetere l'import |
 
 ### 8.2 Alert strategici (BU Manager)
 
@@ -759,7 +829,7 @@ L'applicazione implementa un sistema di alert che segnala le situazioni che rich
 | :---- | :---- | :---- |
 | **Profilo saturo** | Tutte le risorse di un profilo specifico (es. "Analista Funzionale") sono sopra il 100% per le prossime 4 settimane | Valutare assunzione, formazione interna o rifiuto di nuove richieste su quel profilo |
 | **Pipeline value elevata** | Somma del valore stimato delle iniziative con soft lock attivo supera il 20% del budget annuale configurato (sezione 14.2 del Draft) | Valutare il rischio di capacity se tutte le approvazioni arrivano contemporaneamente |
-| **Accumulo Pending Resources** | Più di 3 iniziative in stato "Ready — Pending Resources" il cui fabbisogno insiste sullo stesso profilo | Decisione strutturale di capacity |
+| **Accumulo Pending Resources** | Più di 3 iniziative in stato "Pending Resources" il cui fabbisogno insiste sullo stesso profilo | Decisione strutturale di capacity |
 
 ### 8.3 Modalità di notifica
 
@@ -781,12 +851,12 @@ Metrica di riferimento: **Saturazione delle Risorse** (sezione 14.1 del Draft).
 
 **Contenuto:**
 
-- **Heatmap risorse × settimane** — matrice colorata che mostra la saturazione di ogni risorsa per ogni settimana dell'orizzonte di 12 settimane. Codifica colore: blu (sotto-utilizzo), verde (fascia ottimale 75-100%), giallo (attenzione 101-110%), rosso (sovra-allocazione >110%).
+- **Heatmap risorse × settimane** — matrice colorata che mostra la saturazione di ogni risorsa per ogni settimana dell'orizzonte di 12 settimane. Codifica colore: 🔵 blu (sotto-utilizzo, 0-74%), 🟢 verde (fascia ottimale, 75-100%), 🟡 giallo (attenzione, 101-110%), 🔴 rosso (sovra-allocazione critica, >110%).
 - **Distribuzione per fascia** — grafico a barre che mostra quante risorse cadono in ciascuna fascia di saturazione nella settimana corrente e nelle prossime 4 settimane.
 - **Trend settimanale** — grafico a linea che mostra l'evoluzione della saturazione media della BU nelle ultime 12 settimane, con banda di riferimento 75-100%.
 - **Filtri:** per applicativo, contratto, ruolo, livello, tipologia (interna/esterna), appartenenza (BU Documentale/Engineering Excellence).
-- **Target:** saturazione media della BU tra 75% e 100% (il buffer settimanale assorbe già il margine operativo).
-- **Segnale di allarme:** qualsiasi profilo sopra 110% per più di due settimane consecutive.
+- **Target:** saturazione media della BU tra 75% e 100% (sezione 8.4 del Draft).
+- **Segnale di allarme:** qualsiasi profilo sopra il 110% per più di due settimane consecutive.
 
 ### 9.2 Dashboard "tempo di ciclo"
 
@@ -840,7 +910,7 @@ Vista di sintesi riservata al BU Manager.
 - **Risorse per fascia** — donut chart con distribuzione risorse per fascia di saturazione (sotto-utilizzo / ottimale / attenzione / sovra-allocazione).
 - **Top 3 profili critici** — i tre profili con saturazione più alta, con previsione a 4 e 8 settimane.
 - **Pipeline value** — somma del valore stimato delle iniziative con soft lock attivo, confrontata con il budget annuale della BU (parametro configurabile).
-- **Iniziative Pending Resources** — conteggio per profilo delle iniziative in stato "Ready — Pending Resources".
+- **Iniziative Pending Resources** — conteggio per profilo delle iniziative in stato "Pending Resources".
 
 ### 10.2 Dashboard "accuratezza delle stime"
 
@@ -898,21 +968,21 @@ I parametri globali della BU (entità **Configurazione BU**: buffer ore settiman
 - gestione dell'anagrafica **Clienti** (elenco controllato)
 - configurazione della sincronizzazione Jira (credenziali, frequenza, mapping campi)
 - log di sistema (sincronizzazioni, import)
-- **Audit log** — registro consultabile di tutte le operazioni effettuate nell'applicazione (entità Audit log, sezione 3.2). La vista audit è una tabella filtrabile per utente, entità, tipo di azione e intervallo temporale. Per ogni record è possibile espandere il dettaglio con i valori pre e post modifica, evidenziando visivamente i campi che sono cambiati. Accessibile a entrambi i profili (D&R Manager e BU Manager)
+- **Audit log** *(post-MVP)* — registro consultabile di tutte le operazioni effettuate nell'applicazione (entità Audit log, sezione 3.2). La vista audit è una tabella filtrabile per utente, entità, tipo di azione e intervallo temporale. Per ogni record è possibile espandere il dettaglio con i valori pre e post modifica, evidenziando visivamente i campi che sono cambiati. Accessibile a entrambi i profili (D&R Manager e BU Manager)
 - **Logout** — pulsante di disconnessione dalla sessione corrente. Dopo il logout l'utente viene reindirizzato alla pagina di login Google
 
 ### 11.3 Navigazione del Resource Plan (vista pivot)
 
 La vista pivot è il cuore dell'applicazione. Oltre ai filtri già definiti nella sezione 7.2, supporta:
 
-- **Filtro per ruolo** — seleziona solo le risorse con un ruolo specifico (Analista Funzionale, Senior Dev, Developer, Tech Leader, ecc.)
+- **Filtro per ruolo** — seleziona solo le risorse con un ruolo specifico (Analista Funzionale, Senior Dev, Tech Leader, ecc.)
 - **Filtro per percentuale di allocazione** — range slider per mostrare solo le risorse con saturazione entro un intervallo (es. "mostra solo risorse con saturazione < 50%" per trovare disponibilità)
 - **Filtro per date** — restringe la finestra temporale visualizzata
-- **Zoom temporale** — quattro livelli di aggregazione:
+- **Zoom temporale** — tre livelli di aggregazione (MVP) più uno in backlog:
   - **Giorni** — massimo dettaglio, una colonna per giorno lavorativo, finestra fissa di 2 settimane (10 giorni). Permette di vedere esattamente quali giorni sono occupati, quali hanno assenze e quali sono liberi. Utile per la micro-pianificazione e per risolvere conflitti puntuali
   - **Settimane** — vista di default, una colonna per settimana
   - **Mesi** — aggregazione mensile della saturazione media, visione a medio termine
-  - **Quarter** — aggregazione trimestrale, visione strategica per il BU Manager
+  - **Quarter** *(backlog)* — aggregazione trimestrale, visione strategica per il BU Manager. Non inclusa nel MVP
 - **Totali ore** — per ogni risorsa e per ogni periodo visualizzato, la pivot mostra il totale delle **ore allocate in lavoro** e delle **ore in ferie/assenza**, distinti visivamente
 
 ### 11.4 Navigazione bidirezionale: risorse ↔ iniziative
@@ -931,9 +1001,54 @@ La creazione di un'allocazione **non apre una modale** ma avviene in un pannello
 
 Ogni lista/tabella di entità nell'applicazione supporta:
 
-- **Ricerca testuale** — campo di ricerca che filtra su tutti i campi testuali dell'entità (es. nella lista iniziative: codice, titolo, descrizione, applicativo, contratto)
+- **Ricerca testuale** — campo di ricerca che filtra su tutti i campi testuali dell'entità (es. nella lista iniziative: issue_key, titolo, descrizione, applicativo, contratto)
 - **Filtri per campo** — ogni campo dell'entità è filtrabile. I campi enum (status, priorità, tipologia) sono filtri a selezione multipla; i campi data sono filtri a range; i campi numerici sono filtri a range slider
 - **Filtri rapidi** — i campi binari e gli enum con pochi valori sono sempre visibili come chip sopra la tabella per attivazione/disattivazione immediata senza aprire un pannello filtri
+
+### 11.7 Lista iniziative
+
+La lista iniziative è la vista principale per consultare tutte le iniziative importate da Jira. I dati sono **in sola lettura** (unica eccezione: il campo `note` è editabile inline con click sulla cella).
+
+**Colonne della tabella lista:**
+
+| Colonna | Campo | Ordinabile |
+| :---- | :---- | :---- |
+| Issue key | `issue_key` | Sì |
+| Titolo | `titolo` | Sì |
+| Stato | `stato` (calcolato dalla macchina a stati) | Sì |
+| Stato Jira | `stato_jira` (valore originale importato) | Sì |
+| Priorità | `priorita` | Sì |
+| Applicativo | `applicativo.nome` | Sì |
+| Contratto | `contratto.nome` | Sì |
+| Stima (gg) | `stima_gg` | Sì |
+| Data inizio desiderata | `data_inizio_desiderata` | Sì |
+| Data fine desiderata | `data_fine_desiderata` | Sì |
+| Richiedente | `richiedente` | Sì |
+| Note | `note` | No |
+
+**Filtri multi-selezione dedicati:** la lista iniziative dispone di quattro filtri prominenti posizionati sopra la tabella come componenti **multi-select** (dropdown con checkbox, selezione multipla con chip attivi):
+
+| Filtro | Tipo | Valori |
+| :---- | :---- | :---- |
+| **Stato** | Multi-select | Tutti gli stati della macchina a stati (sezione 3.1): To Do, Studio Fattibilità, Pronta per la Stima, Attesa di Allocazione, Allocato Soft Lock, Confermato Hard Lock, Completato, Pending Resources, Rejected |
+| **Contratto** | Multi-select | Elenco dinamico dei contratti censiti nel sistema + valore "(senza contratto)" per le iniziative senza contratto associato |
+| **Applicativo** | Multi-select | Elenco dinamico degli applicativi censiti nel sistema |
+| **Priorità** | Multi-select | Highest, High, Medium, Low, Lowest |
+
+I filtri multi-select sono **combinabili in AND**: selezionando ad esempio stato "Attesa di Allocazione" + "Allocato Soft Lock" e priorità "Highest" + "High", la lista mostra solo le iniziative che hanno uno degli stati selezionati **e** una delle priorità selezionate. All'interno dello stesso filtro i valori sono combinati in **OR** (es. stato = "Attesa di Allocazione" OR "Allocato Soft Lock").
+
+Ogni filtro mostra il **conteggio** dei risultati attivi accanto al nome del filtro (es. "Stato (2)"). Un pulsante **"Azzera filtri"** riporta tutti i filtri allo stato iniziale.
+
+**Dettaglio iniziativa:** il click su una riga apre un pannello laterale (**drawer**) in sola lettura con tutti i campi dell'iniziativa organizzati in sezioni:
+
+- **Intestazione**: issue_key, titolo, stato (badge colorato), priorità (badge)
+- **Dati Jira**: richiedente, data_richiesta, tenant, tipologia, valore_economico, corsia_urgenza, engineering_excellence
+- **Sizing**: sizing_sviluppo + polarita_sizing_sviluppo, sizing_analisi + polarita_sizing_analisi, stima_gg, affidabilita_stima, analisi_ptf
+- **Classificazione**: applicativo, contratto, componenti, in_riuso_da
+- **Date**: data_inizio_desiderata, data_fine_desiderata, data_inizio_pianificata, data_fine_pianificata
+- **Allocazioni**: tabella riepilogativa delle allocazioni collegate (risorsa, ruolo, ore, periodo) con totale giorni allocati vs stima_gg
+- **Note**: campo `note` editabile (unico campo modificabile dall'utente)
+- **Descrizione**: testo completo della descrizione (può essere multilinea con formattazione Jira convertita in testo semplice)
 
 ---
 
@@ -942,7 +1057,7 @@ Ogni lista/tabella di entità nell'applicazione supporta:
 ### 12.1 Performance
 
 - Il caricamento della vista pivot per persona e settimana deve completarsi in meno di **3 secondi** con 60 risorse e 12 settimane di orizzonte.
-- La sincronizzazione con Jira deve completarsi in meno di **5 minuti** per un volume di 200 epiche attive.
+- L'import CSV deve completarsi in meno di **5 minuti** per un volume di 200 iniziative.
 - Le dashboard devono aggiornarsi in meno di **5 secondi**.
 
 ### 12.2 Sicurezza
@@ -951,7 +1066,7 @@ Ogni lista/tabella di entità nell'applicazione supporta:
 - Autorizzazione basata su ruoli (BU Manager, Demand & Resource Manager).
 - I dati del Resource Plan sono riservati alla BU: nessun accesso da parte di utenti esterni ai due profili definiti.
 - Le credenziali di accesso a Jira (API token) sono memorizzate in modo sicuro e non visibili nell'interfaccia.
-- **Audit log completo** per tutte le operazioni di creazione, modifica, cancellazione e import su ogni entità, con tracciamento dell'utente, dei valori pre e post modifica (sezione 3.2, entità Audit log). Consultabile dalla sezione Impostazioni.
+- **Audit log completo** *(post-MVP)* per tutte le operazioni di creazione, modifica, cancellazione e import su ogni entità, con tracciamento dell'utente, dei valori pre e post modifica (sezione 3.2, entità Audit log). Consultabile dalla sezione Impostazioni.
 
 ### 12.3 Disponibilità
 
@@ -1067,7 +1182,23 @@ Il tema MUI dell'applicazione utilizza i colori della **brand identity** di SiMa
 
 #### Import risorse (CSV)
 
-L'anagrafica delle risorse può essere importata tramite upload di un file **CSV** con i campi dell'entità Risorsa. Il D&R Manager carica il file dall'interfaccia; l'applicazione valida i dati, segnala eventuali errori riga per riga e importa le risorse valide. Le risorse già presenti (match su `id_dipendente` oppure su nominativo costruito come `cognome + " " + nome`) vengono aggiornate, le nuove vengono create. Il formato atteso:
+L'anagrafica delle risorse può essere importata tramite upload di un file **CSV** con i campi dell'entità Risorsa. Il D&R Manager carica il file dall'interfaccia; l'applicazione valida i dati, segnala eventuali errori riga per riga e importa le risorse valide.
+
+**Modalità di import (toggle nell'interfaccia):**
+
+- **Append** *(default, toggle "Override" disattivato)* — vengono importate **solo le risorse nuove** (non presenti nel sistema). Le risorse già esistenti (match su `id_dipendente` oppure su nominativo costruito come `cognome + " " + nome`) vengono **ignorate**: i loro dati anagrafici non vengono modificati. Il riepilogo pre-conferma mostra quante risorse sono state skippate perché già presenti
+- **Override** *(toggle "Override" attivato)* — all'attivazione del toggle il sistema mostra un **messaggio informativo**: *"Attenzione: procedendo in questa modalità, i dati anagrafici delle risorse esistenti verranno sovrascritti con i valori del file CSV."* Le risorse già presenti vengono **aggiornate** con i dati del CSV (tipologia, appartenenza, is_ptf, note), le nuove vengono create
+
+**Gestione risorse assenti dal CSV (solo in override):** il riepilogo pre-conferma evidenzia le risorse presenti nel sistema ma **assenti dal file CSV** con un warning dedicato. Per ciascuna risorsa assente l'utente può scegliere di **disattivarla** (flag `attivo` = false) tramite azione esplicita (checkbox nel riepilogo). La disattivazione **non è automatica**: di default le risorse assenti restano attive e invariate.
+
+Se l'utente sceglie di disattivare una risorsa che ha **allocazioni future** (data_fine nel futuro), il sistema mostra l'elenco delle allocazioni impattate (iniziativa, periodo, ore allocate) e richiede una **conferma esplicita**. Alla conferma:
+
+1. La risorsa viene disattivata (`attivo` = false)
+2. Le allocazioni future vengono **rilasciate** (cancellate)
+3. Le iniziative coinvolte vengono rivalutate dalla macchina a stati: se l'effort non è più coperto, passano a stato **Pending Resources**
+4. Le allocazioni passate (già consuntivate o con data_fine nel passato) **restano invariate**
+
+Il formato atteso:
 
 ```
 id_dipendente;cognome;nome;tipologia;appartenenza;is_ptf;note
@@ -1083,7 +1214,7 @@ I parametri temporalizzati delle risorse possono essere importati in blocco tram
 ```
 id_dipendente;ruolo;livello;ore_settimanali;costo_giornata;coefficiente_produttivita;buffer_ore_settimanali;data_inizio_validita;data_fine_validita
 HR001;Senior Dev;Senior;40;350;0.85;;2026-09-01;
-HR002;Developer;Mid;36;300,00;1.0;12;2026-09-01;2026-12-31
+HR002;Developer;Mid;36;300;1.0;12;2026-09-01;2026-12-31
 HR003;Analista Funzionale;Junior;40;200;1.3;;2026-09-01;
 ```
 
@@ -1099,14 +1230,21 @@ Dove:
 - **data_inizio_validita** — data da cui i parametri sono validi (obbligatoria)
 - **data_fine_validita** — data di fine validità dei parametri (opzionale: vuoto = valido correntemente, `null`)
 
+**Modalità di import (toggle nell'interfaccia):**
+
+- **Append** *(default, toggle "Override" disattivato)* — i record del CSV vengono **aggiunti** come nuovi parametri temporalizzati. I record vigenti vengono chiusi automaticamente (vedi sotto). Nessun record esistente viene cancellato o modificato
+- **Override** *(toggle "Override" attivato)* — all'attivazione del toggle il sistema mostra un **messaggio informativo**: *"Attenzione: procedendo in questa modalità, per ogni risorsa presente nel file tutti i record di parametro esistenti verranno cancellati e ricreati con i valori del CSV."* Per ogni risorsa presente nel CSV, **tutti i record di parametro esistenti vengono cancellati** e sostituiti con i record del file (full replace per risorsa). Le risorse non presenti nel CSV mantengono i propri parametri invariati
+
 L'applicazione, in fase di import:
 
 1. **Match risorse:** il match è per `id_dipendente`. I record con `id_dipendente` non trovato in anagrafica vengono segnalati come errore
-2. **Chiusura automatica:** per ogni risorsa, il record di Parametro risorsa vigente viene chiuso alla data precedente a `data_inizio_validita`
-3. **Validazione:** l'applicazione verifica che `data_inizio_validita` non sia anteriore alla `data_inizio_validita` dell'ultimo record esistente (non si possono inserire parametri retroattivi che sovrascrivono periodi già chiusi)
-4. **Riepilogo pre-conferma:** prima del salvataggio, l'applicazione mostra il riepilogo: record nuovi, record che chiudono parametri precedenti, errori di validazione
+2. **Logica append** — chiusura automatica: per ogni risorsa, il record di Parametro risorsa vigente viene chiuso alla data precedente a `data_inizio_validita` del nuovo record
+3. **Logica override** — cancellazione e ricostruzione: per ogni risorsa nel CSV, tutti i record di parametro esistenti vengono rimossi e sostituiti con quelli del file
+4. **Validazione copertura periodi (solo in override):** prima di procedere, l'applicazione verifica che i nuovi record del CSV coprano tutti i periodi in cui la risorsa ha **allocazioni attive**. Se esistono periodi con allocazioni non coperti dai nuovi parametri, l'import viene **bloccato** con un messaggio che elenca i periodi scoperti e le allocazioni impattate. L'utente deve correggere il CSV per coprire quei periodi prima di ripetere l'import
+5. **Validazione non retroattività (solo in append):** l'applicazione verifica che `data_inizio_validita` non sia anteriore alla `data_inizio_validita` dell'ultimo record esistente (non si possono inserire parametri retroattivi che sovrascrivono periodi già chiusi). In modalità override questa validazione non si applica perché i record preesistenti vengono eliminati
+6. **Riepilogo pre-conferma:** prima del salvataggio, l'applicazione mostra il riepilogo: record nuovi, record che chiudono/sostituiscono parametri precedenti, errori di validazione
 
-> **Regola di non retroattività:** come per l'inserimento manuale, l'import massivo non modifica i calcoli storici. Le allocazioni passate restano agganciate ai parametri vigenti nel loro periodo.
+> **Regola di non retroattività:** come per l'inserimento manuale, l'import massivo in modalità append non modifica i calcoli storici. Le allocazioni passate restano agganciate ai parametri vigenti nel loro periodo.
 
 #### Import assenze (CSV da Factorial)
 
@@ -1125,7 +1263,103 @@ Dove:
 - **giorno** — data dell'assenza in formato `YYYY-MM-DD`
 - **ore_assenza** — ore di assenza nella giornata (8 = giornata intera, 4 = mezza giornata, ecc.)
 
-L'applicazione effettua il **match per nominativo** (costruito come `cognome + " " + nome`) con le risorse in anagrafica, segnala i nominativi non riconosciuti e applica la **deduplicazione**: se un'assenza per la stessa risorsa e lo stesso giorno è già presente, non viene duplicata ma aggiornata con il valore più recente.
+**Modalità di import: sempre override (full replace del periodo).** Prima di procedere il sistema mostra un **messaggio informativo**: *"Attenzione: tutte le assenze registrate nel periodo coperto dal file (dalla data minima alla data massima presenti nel CSV) verranno cancellate e ricostruite con i dati del file."*
+
+L'import assenze opera in modalità **full replace**: il sistema determina il **range di date** coperto dal CSV (dalla data minima alla data massima presenti nel file) e **cancella tutte le assenze esistenti** in quel range per tutte le risorse, quindi inserisce i record del CSV. Questo significa che se un'assenza precedentemente registrata non è più presente nel nuovo file, viene rimossa dal sistema. Questa logica garantisce che il CSV Factorial sia sempre la **fonte di verità** (single source of truth) per le assenze.
+
+**Match risorse:** l'applicazione effettua il match per **nominativo** (costruito come `cognome + " " + nome`) con le risorse in anagrafica.
+
+**Warning generati durante l'import:**
+
+| Warning | Condizione | Dettaglio |
+| :---- | :---- | :---- |
+| **Risorsa non censita** | Il nominativo nel CSV non corrisponde a nessuna risorsa in anagrafica | L'assenza non viene importata; il warning elenca i nominativi non riconosciuti per consentire la correzione dell'anagrafica |
+| **Impatto su allocazioni esistenti** | L'assenza (nuova o modificata) riduce la capacità disponibile in una settimana dove la risorsa è già allocata, causando sovra-allocazione (saturazione > 100%) | Il warning indica la risorsa, la settimana e la nuova percentuale di saturazione risultante. L'import prosegue comunque: il warning è informativo, non bloccante |
+
+> **Nota:** le modifiche ad assenze in date passate (variazione ore o rimozione) **non generano warning** perché non hanno impatto sulla pianificazione futura.
+
+### 13.8 Import iniziative (CSV da Jira)
+
+Le iniziative vengono importate nel sistema tramite upload di un file **CSV** estratto da Jira. Questo è l'**unico canale di ingresso** per le iniziative: non possono essere create manualmente e i dati importati **non sono modificabili** dall'utente nell'applicazione. Il separatore è **punto e virgola** (`;`).
+
+#### Formato CSV
+
+Il file CSV ha la seguente struttura di header (nomi colonne Jira):
+
+```
+Issue key;Issue id;Summary;Description;Status;Priority;Custom field (Service Type);Custom field (Contratti BU DOC);Due date;Custom field (Valore economico stimato);Original estimate;Custom field (Progetto BU DOC);Custom field (Richiedente);Custom field (Data richiesta);Custom field (Tenant);Components;Custom field (Corsia d'urgenza);Custom field (Engineering Excellence);Custom field (Engineering Excellence).1;Custom field (Engineering Excellence).2;Custom field (Sizing Sviluppo);Custom field (Polarità Sizing Sviluppo);Custom field (Sizing Analisi);Custom field (Polarità Sizing Analisi);Custom field (Affidabilità della stima);Custom field (Analisi PTF);Custom field (Figure necessarie);Custom field (Vincoli e/o criticità);Custom field (In riuso da)
+```
+
+#### Mapping colonne CSV → campi entità Iniziativa
+
+| Colonna CSV | Campo entità | Trasformazione |
+| :---- | :---- | :---- |
+| Issue key | `issue_key` | Valore diretto (es. "DBD-29"). **Chiave di match** per il re-import |
+| Issue id | `issue_id` | Valore numerico diretto |
+| Summary | `titolo` | Valore diretto |
+| Description | `descrizione` | Valore diretto (può essere multilinea con markup Jira) |
+| Status | `stato_jira` / `status` | Valore diretto in `stato_jira`; lo stato interno `status` è calcolato dalla macchina a stati (sezione 3.1) |
+| Priority | `priorita` | Valore diretto (Highest, High, Medium, Low, Lowest) |
+| Service Type | `tipologia` | Valore diretto (es. "Consumo/Misura -> MEV") |
+| Contratti BU DOC | `contratto` | Match per `id_contratto_jira` sull'entità Contratto. Se non trovato → **alert** (sezione 8.1) |
+| Due date | `data_fine_desiderata` | Conversione dal formato Jira `DD/Mon/YY HH:MM AM/PM` (es. "31/Jul/26 12:00 AM") a data |
+| Valore economico stimato | `valore_economico` | Valore diretto (es. "30k - 40k", "> 40k") |
+| Original estimate | `stima_gg` | Conversione secondi → giorni: valore ÷ 28800 (8 ore/giorno). Es. 576000 = 20 gg, 1440000 = 50 gg. Se vuoto → null |
+| Progetto BU DOC | `applicativo` | Match per nome con l'anagrafica applicativi. Se non trovato → errore |
+| Richiedente | `richiedente` | Valore diretto |
+| Data richiesta | `data_richiesta` | Conversione dal formato Jira a data |
+| Tenant | `tenant` | Valore diretto |
+| Components | `componenti` | Valore diretto |
+| Corsia d'urgenza | `corsia_urgenza` | Valore diretto ("No" → null) |
+| Engineering Excellence (.1, .2) | `engineering_excellence` | Concatenazione con virgola dei campi non vuoti e diversi da "No" (es. "AI, DevEx, UI/UX"). Se tutti "No" o vuoti → null |
+| Sizing Sviluppo | `sizing_sviluppo` | Valore diretto (es. "M (15 - 50 gg)") |
+| Polarità Sizing Sviluppo | `polarita_sizing_sviluppo` | Valore diretto |
+| Sizing Analisi | `sizing_analisi` | Valore diretto |
+| Polarità Sizing Analisi | `polarita_sizing_analisi` | Valore diretto |
+| Affidabilità della stima | `affidabilita_stima` | Valore diretto |
+| Analisi PTF | `analisi_ptf` | Valore diretto |
+| Figure necessarie | `figure_necessarie` | Valore diretto |
+| Vincoli e/o criticità | `vincoli_criticita` | Valore diretto |
+| In riuso da | `in_riuso_da` | Valore diretto |
+
+> **Convenzione sui nomi colonna:** per i campi Jira con intestazione `Custom field (Valore)`, il sistema utilizza il valore tra parentesi tonde come riferimento interno.
+
+#### Logica di import
+
+L'applicazione, in fase di import:
+
+1. **Parsing CSV:** il file viene letto con separatore `;`. Le descrizioni multilinea (contenenti virgolette Jira) vengono gestite correttamente
+2. **Match iniziative:** il match è per `issue_key` (colonna "Issue key"). Se l'issue_key non esiste nel sistema, viene creata una nuova iniziativa
+3. **Match applicativo:** il valore di "Progetto BU DOC" viene cercato per nome nell'anagrafica applicativi. Se non trovato, il record viene segnalato come **errore** e non importato
+4. **Match contratto:** il valore di "Contratti BU DOC" viene cercato per `id_contratto_jira` nell'anagrafica contratti. Se non trovato e il campo non è vuoto, il record viene importato ma il sistema genera un **alert** "Contratto non censito" (sezione 8.1). Il campo `contratto` resta null
+5. **Mapping stato:** lo `stato_jira` determina lo stato interno dell'iniziativa secondo la macchina a stati (sezione 3.1). Gli stati non pianificabili (To Do, Studio fattibilità, Pronta per la stima) vengono importati ma le iniziative non sono allocabili
+6. **Conversione stima:** il campo "Original estimate" (in secondi Jira) viene convertito in giorni lavorativi dividendo per 28800
+7. **Riepilogo pre-conferma:** prima del salvataggio, l'applicazione mostra il riepilogo: nuove iniziative, iniziative aggiornate, anomalie rilevate, errori di validazione
+
+#### Logica di re-import (aggiornamento iniziative esistenti)
+
+Quando un'iniziativa con lo stesso `issue_key` è già presente nel sistema, l'applicazione confronta i dati importati con quelli esistenti. Se vengono rilevate **anomalie**, l'aggiornamento viene **bloccato** e il D&R Manager deve confermare prima che le modifiche siano applicate.
+
+**Anomalie rilevate:**
+
+| Anomalia | Descrizione |
+| :---- | :---- |
+| **Variazione giorni stimati** | Il valore di `stima_gg` (da Original estimate) è cambiato rispetto al dato esistente. Il sistema mostra la variazione assoluta e percentuale |
+| **Cambio data fine desiderata** | Il Due date è diverso da quello registrato |
+| **Cambio priorità** | La Priority è cambiata |
+| **Cambio tipologia** | Il Service Type è cambiato |
+| **Cambio stato Jira** | Lo Status è cambiato (in particolare: transizione verso Rejected o da uno stato pianificabile a uno non pianificabile) |
+| **Transizione a Rejected con allocazioni** | Lo Status è "Rejected" e l'iniziativa ha allocazioni attive (soft o hard lock) |
+
+**Interfaccia di conferma:**
+
+Il sistema presenta un riepilogo delle anomalie per ogni iniziativa coinvolta, evidenziando per ogni campo il **valore corrente** e il **nuovo valore**. Il D&R Manager può:
+
+- **Confermare** l'aggiornamento — i dati vengono sovrascritti e, se lo stato cambia, la macchina a stati esegue la transizione
+- **Rifiutare** l'aggiornamento — i dati dell'iniziativa restano invariati
+- **Confermare parzialmente** — accettare i cambi sui dati ma gestire separatamente il rilascio delle allocazioni (nel caso di Rejected)
+
+> **Rejected con allocazioni:** se lo stato passa a Rejected e l'iniziativa ha allocazioni attive, il sistema presenta l'elenco delle allocazioni con dettaglio risorsa, percentuale, periodo e tipo lock. Il D&R Manager rilascia le allocazioni manualmente (singolarmente o in blocco) dopo aver valutato l'impatto sulla pianificazione delle risorse coinvolte.
 
 ---
 
@@ -1136,4 +1370,9 @@ L'applicazione effettua il **match per nominativo** (costruito come `cognome + "
 | 27/08/2026 | Draft v1 | Stesura iniziale del documento con sezioni 1-10: contesto e obiettivi, utenti e permessi, modello dati (Applicativo, Modulo, Contratto, Iniziativa, Risorsa, Parametro risorsa, Allocazione, Profilo di competenza), integrazione Jira, import assenze Factorial, funzionalità core (orizzonti temporali, vista pivot, gestione iniziative/allocazioni, pool risorse, soft/hard lock, affiancamento, allocazione PM, PTF, finestre rilascio), regole di business automatiche, dashboard D&R Manager e BU Manager, requisiti non funzionali |
 | 28/08/2026 | Draft v1.1 | **Modello dati:** aggiunto campo `modulo` (FK nullable) su Iniziativa per tracciamento competenze a livello modulo. Spostati `soft_lock_scadenza` e `affiancamento` da Iniziativa ad Allocazione (la granularità è sulla singola assegnazione risorsa-iniziativa, non sull'iniziativa). Unificati `flag_rischio_tecnico` e `flag_rischio_stima` nel campo `affidabilita_stima` (enum Alta/Media/Bassa) + `vincoli_criticita` (testo libero PTF). Allineato `ruolo_nell_iniziativa` su Allocazione alla stessa enum di `ruolo` su Risorsa. Aggiunto flag `attivo` su Risorsa (auto-calcolato da `data_fine_contratto`). Aggiunto `data_fine_contratto` e `buffer_ore_settimanali` (override per risorsa) su Parametro risorsa. **Vincoli:** sovra-allocazione >100% cambiata da blocco a warning con conferma. Vincolo durata contrattuale cambiato da blocco a warning con conferma. **Nuove sezioni:** sezione 6 (Consuntivo e accuratezza delle stime) con entità Consuntivo e import CSV da worklog Jira. Sezione 12 (Stack tecnologico) con scelte architetturali: Next.js 15+, Vercel, Neon Postgres, Prisma 6+, Auth.js con Google Provider, MUI v6+, palette colori SiMaggioli. **Import:** aggiunto formato CSV assenze Factorial (nominativo;giorno;ore_assenza) e import risorse da CSV |
 | 31/08/2026 | Draft v2 | **Review commenti Giulia Pau e Sonia Brundu (28/08).** Invertita codifica colori saturazione: blu per sotto-utilizzo, verde per fascia ottimale (era il contrario). Risorse di manutenzione: ammessa allocazione a percentuale variabile, non più vincolate al 100%. Rimossa entità Finestra di rilascio e relativa sezione 7.9, campo su Applicativo e alert "Conflitto con finestra di rilascio" (non necessaria per la prima versione). Aggiunta sezione 7.0 (Operazioni CRUD e regole di cancellazione): tutte le entità modificabili e cancellabili, cancellazione bloccata (non a cascata) se esistono dipendenze. **Modello dati:** aggiunta entità Cliente (slug PK auto-generato da nome, inline creation da form Contratto); campo `cliente` su Contratto cambiato da Stringa a FK → Cliente; Risorsa: `nominativo` sostituito da campi distinti `nome` + `cognome`, aggiunto `id_dipendente` (dal sistema HR), `is_ptf` rinominato in "PTF (Presidio Tecnico Funzionale)"; Iniziativa: aggiunto campo `codice` per riferimento rapido; Allocazione: `effort_allocato_gg` ora calcolato automaticamente da `giorni_lavorativi(data_inizio, data_fine) × percentuale_allocazione / 100`, il D&R Manager inserisce solo percentuale e date. **UX e navigazione (nuova sezione 11):** principi generali (informazione minima, tooltip, badge iniziali risorse con tooltip nominativo completo); pagina impostazioni globali (parametri BU); navigazione pivot con zoom a 3 livelli (settimane, mesi, quarter) e filtri per ruolo/percentuale/date; navigazione bidirezionale risorse ↔ iniziative; creazione allocazioni inline con panel riepilogativo iniziativa e giorni residui; filtri rapidi come chip per campi binari/enum e ricerca full-text su tutte le entità. **Fuori scope (rimandati):** skill matrix / mappatura tecnologie per risorsa, tracciamento formazione con board Jira |
+| 04/09/2026 | Draft v2.6 | **Warning informativi e gestione cascata sugli importer.** Aggiunto messaggio informativo all'attivazione del toggle override per risorse, parametri risorsa e assenze. Import risorse override: aggiunta gestione risorse assenti dal CSV con warning + disattivazione opzionale (checkbox nel riepilogo, non automatica); se la risorsa disattivata ha allocazioni future, warning con elenco impatti → conferma esplicita → rilascio allocazioni e rivalutazione stato iniziative (Pending Resources). Import parametri override: aggiunto warning **bloccante** se i nuovi record non coprono periodi con allocazioni attive; l'utente deve correggere il CSV. Import assenze: aggiunto messaggio informativo pre-import sul full replace del periodo |
+| 04/09/2026 | Draft v2.5 | **Logiche override/append per tutti gli importer.** Import risorse: aggiunta modalità append (default) vs override (toggle esplicito); in append le risorse esistenti vengono ignorate, in override i dati anagrafici vengono aggiornati; nessuna cancellazione in entrambe le modalità. Import parametri risorsa: aggiunta modalità append (default, con chiusura automatica record vigente) vs override (full replace per risorsa: cancella tutti i record esistenti della risorsa e ricostruisce dal CSV); in override warning se l'operazione impatta periodi con allocazioni consuntivate. Import assenze: riscritta logica come **full replace del periodo** (il range di date del CSV diventa la fonte di verità; tutte le assenze nel range vengono cancellate e ricostruite); aggiunti warning per risorsa non censita e impatto su allocazioni esistenti (sovra-allocazione); le modifiche ad assenze passate non generano warning. Import iniziative: logiche invariate (sezione 13.8) |
+| 03/09/2026 | Draft v2.4 | **UI iniziative read-only e filtri multi-selezione.** Aggiornata sezione 7.0 CRUD: tabella ampliata con colonne "Modificabile" e "Cancellabile"; Iniziativa marcata come non modificabile (solo campo `note` editabile) e non cancellabile. Sezione 7.3: rimossa creazione manuale iniziative, esplicitato che l'import CSV è l'unico canale di ingresso. Nuova sezione 11.7 (Lista iniziative): tabella con 12 colonne ordinabili, 4 filtri multi-select prominenti (Stato, Contratto, Applicativo, Priorità) combinabili in AND tra filtri / OR all'interno; dettaglio iniziativa in drawer laterale read-only con sezioni organizzate e campo `note` editabile inline. Aggiunto alert operativo "Contratto non censito" (sezione 8.1) per valori CSV non corrispondenti ad alcun `id_contratto_jira`. Aggiornato NFR 12.1: "sincronizzazione Jira" → "import CSV" |
+| 03/09/2026 | Draft v2.3 | **Macchina a stati iniziativa e import CSV.** Ridefinita enum `status` dell'Iniziativa: rimossi In Lavorazione, In Attesa di Copertura Contrattuale, Fuori Scope; aggiunti Allocato Soft Lock, Confermato Hard Lock, Rejected; rinominati Ready — Pending Resources → Pending Resources, In Attesa di Allocazione → Attesa di Allocazione. Aggiunta macchina a stati formale (sezione 3.1) con mapping stati Jira (Stimato → Attesa di Allocazione, Approvato → Confermato Hard Lock, Rejected → Rejected). Completato auto-calcolato su data_fine ultima allocazione. **Import CSV iniziative (nuova sezione 13.8):** formato CSV completo con campo `stato_jira`; logica di re-import con **blocco e conferma** del D&R Manager per anomalie (variazione stima_gg, date, priorità, tipologia); rilascio allocazioni su Rejected con **conferma manuale**. Aggiornata sezione 7.3 (creazione → import da CSV), sezione 7.4 (soft/hard lock allineati alla macchina a stati), sezione 4.2 (dati importati via CSV, rimossa sincronizzazione giornaliera). Aggiunti alert operativi: "Iniziativa Rejected con allocazioni" e "Anomalie re-import iniziativa" (sezione 8.1). Allineati tutti i riferimenti a "Ready — Pending Resources" al nuovo nome "Pending Resources" |
+| 02/09/2026 | Draft v2.2 | **Allineamento spec a code review.** Soglie saturazione allineate in tutte le sezioni (8.1, 8.2, 9.1, 10.1, 7.7) ai valori canonici della sezione 7.2: 🔵 0-74% sotto-utilizzo, 🟢 75-100% ottimale, 🟡 101-110% attenzione, 🔴 >110% sovra-allocazione critica. **Enum ruoli aggiornata** da 8 a 13 valori (Analista Funzionale, Analista HD1, SAP HD1, Tech Leader, Analista HD2, Senior Dev, Developer, SAP Consultant, Resp. BU, UI/UX, DevOps, Project Manager, Architect) in sezioni 3.1, 7.3, 11.3 e CSV esempio parametri. **Audit log marcato post-MVP** (entità, vista UI e NFR). **Vista Quarter marcata backlog** nella sezione 11.3; zoom MVP confermato a 3 livelli (Giorni, Settimane, Mesi) |
 | 31/08/2026 | Draft v2.1 | **Storicizzazione parametri risorsa:** `ruolo` e `livello` spostati da Risorsa a Parametro risorsa (temporalizzati con `data_inizio_validita` / `data_fine_validita` come ore, costo, coefficiente). `data_fine_contratto` rimosso da Parametro risorsa: il flag `attivo` sulla Risorsa ora dipende dalla `data_fine_validita` del Parametro risorsa vigente. **Campo `pool` eliminato** dall'entità Risorsa; rimossa sezione 7.4 (I due pool di risorse); sottosezioni 7.5-7.8 rinumerate a 7.4-7.7. **Entità Assenza allineata al CSV:** `data_inizio`/`data_fine` sostituiti da `giorno` (singola data) + `ore_assenza`; aggiunto campo `fonte` (Factorial/Jira). **Import:** aggiornato CSV risorse con campi separati `id_dipendente`, `cognome`, `nome` (rimossi `ruolo`, `livello`, `pool`); aggiunto nuovo import massivo Parametro risorsa da CSV con `data_fine_validita` opzionale; esplicitato match per nominativo costruito (`cognome + " " + nome`) su tutti gli importer (risorse, assenze, consuntivo). **Audit e logout:** aggiunta entità Audit log (sezione 3.2) con tracciamento completo di ogni operazione (azione, utente, entità, valore pre/post modifica); consultazione audit nella sezione Impostazioni con filtri per utente/entità/azione/periodo; aggiunta funzionalità di logout. **Vista pivot — assenze visibili:** riscritta sezione 7.2 con rappresentazione grafica a blocchi distinti (blocco assenze in grigio tratteggiato + blocchi allocazioni + spazio libero); saturazione calcolata sulla capacità disponibile (al netto delle assenze), non sulla teorica. **Soglie saturazione ricalibrate:** il buffer settimanale assorbe già il margine operativo e le stime hanno la propria contingency, quindi la fascia ottimale sale a 75-100% (era 75-85%), attenzione 101-110% (era 86-90%), sovra-allocazione critica >110% (era >90%). Default Configurazione BU aggiornati di conseguenza. **Creazione iniziativa — filtro incrociato applicativo/contratto:** nessun vincolo formale tra applicativo e contratto, ma filtro incrociato bidirezionale nel form di creazione (selezionando l'applicativo si filtrano i contratti associati e viceversa, con possibilità di rimuovere il filtro). **Vista pivot giornaliera:** aggiunto quarto livello di zoom "Giorni" con dettaglio giornaliero e finestra fissa di 2 settimane (10 giorni lavorativi) per micro-pianificazione |

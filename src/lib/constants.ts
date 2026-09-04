@@ -35,51 +35,48 @@ export const CONTRACT_TYPE_LABELS: Record<string, string> = {
   APPALTO: "Appalto",
 };
 
-export const INITIATIVE_TYPE_LABELS: Record<string, string> = {
-  MEV: "MEV",
-  MAD: "MAD",
-};
-
 export const INITIATIVE_STATUS_LABELS: Record<string, string> = {
-  IN_ATTESA_DI_ALLOCAZIONE: "In attesa allocazione",
-  ALLOCATO: "Allocato",
-  IN_LAVORAZIONE: "In lavorazione",
+  ATTESA_DI_ALLOCAZIONE: "In attesa allocazione",
+  ALLOCATO_SOFT_LOCK: "Allocato (Soft Lock)",
+  CONFERMATO_HARD_LOCK: "Confermato (Hard Lock)",
+  PENDING_RESOURCES: "Pending Resources",
   COMPLETATO: "Completato",
-  READY_PENDING_RESOURCES: "Ready - Pending Resources",
-  IN_ATTESA_COPERTURA_CONTRATTUALE: "Attesa copertura contrattuale",
-  FUORI_SCOPE: "Fuori scope",
+  REJECTED: "Rejected",
 };
 
 export const INITIATIVE_STATUS_COLORS: Record<
   string,
   "default" | "primary" | "secondary" | "success" | "warning" | "error" | "info"
 > = {
-  IN_ATTESA_DI_ALLOCAZIONE: "warning",
-  ALLOCATO: "info",
-  IN_LAVORAZIONE: "primary",
+  ATTESA_DI_ALLOCAZIONE: "warning",
+  ALLOCATO_SOFT_LOCK: "info",
+  CONFERMATO_HARD_LOCK: "primary",
+  PENDING_RESOURCES: "secondary",
   COMPLETATO: "success",
-  READY_PENDING_RESOURCES: "secondary",
-  IN_ATTESA_COPERTURA_CONTRATTUALE: "error",
-  FUORI_SCOPE: "default",
+  REJECTED: "default",
 };
 
 export const PRIORITY_LABELS: Record<string, string> = {
-  ALTA: "Alta",
-  MEDIA: "Media",
-  BASSA: "Bassa",
+  HIGHEST: "Highest",
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+  LOWEST: "Lowest",
 };
 
-export const PRIORITY_COLORS: Record<string, "error" | "warning" | "info"> = {
-  ALTA: "error",
-  MEDIA: "warning",
-  BASSA: "info",
+export const PRIORITY_COLORS: Record<string, "error" | "warning" | "info" | "default" | "success"> = {
+  HIGHEST: "error",
+  HIGH: "warning",
+  MEDIUM: "info",
+  LOW: "default",
+  LOWEST: "success",
 };
 
 export const ALERT_TYPE_LABELS: Record<string, string> = {
   SOVRA_ALLOCAZIONE: "Sovra-allocazione",
   SOTTO_UTILIZZO: "Sotto-utilizzo",
   SCADENZA_SOFT_LOCK: "Scadenza soft lock",
-  READY_PENDING_RESOURCES: "Pending Resources",
+  PENDING_RESOURCES: "Pending Resources",
   INIZIATIVA_SENZA_ALLOCAZIONI: "Senza allocazioni",
   PROSSIMITA_SCADENZA_CONTRATTO: "Scadenza contratto",
   SLITTAMENTO_COEFFICIENTE: "Slittamento coefficiente",
@@ -87,6 +84,9 @@ export const ALERT_TYPE_LABELS: Record<string, string> = {
   PROFILO_SATURO: "Profilo saturo",
   PIPELINE_VALUE_ELEVATA: "Pipeline value elevata",
   ACCUMULO_PENDING_RESOURCES: "Accumulo pending",
+  CONTRATTO_NON_CENSITO: "Contratto non censito",
+  REJECTED_CON_ALLOCAZIONI: "Rejected con allocazioni",
+  ANOMALIE_REIMPORT: "Anomalie re-import",
 };
 
 export const ALERT_SEVERITY_LABELS: Record<string, string> = {

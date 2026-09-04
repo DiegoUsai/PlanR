@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
   const warnings: string[] = [];
 
-  if (allocationEnd > initiative.contract.endDate) {
+  if (initiative.contract && allocationEnd > initiative.contract.endDate) {
     warnings.push(
       `Data fine allocazione (${allocationEnd.toLocaleDateString("it-IT")}) supera data fine contratto (${initiative.contract.endDate.toLocaleDateString("it-IT")})`
     );

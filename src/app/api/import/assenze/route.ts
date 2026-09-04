@@ -134,13 +134,14 @@ export async function POST(request: NextRequest) {
     notes: string | null;
   }> = [];
   const affectedResourceIds = new Set<string>();
+  const warnings: { row: number; field: string; message: string }[] = [];
   let minDate = validRows[0].date;
   let maxDate = validRows[0].date;
 
   for (const row of validRows) {
     const resourceId = resourceMap.get(row.nominativo);
     if (!resourceId) {
-      rowErrors.push({ row: row.rowNum, field: "nominativo", message: `Risorsa non trovata: "${row.nominativo}"` });
+      warnings.push({ row: row.rowNum, field: "nominativo", message: `Risorsa non censita: "${row.nominativo}" — riga ignorata` });
       continue;
     }
     affectedResourceIds.add(resourceId);
@@ -170,6 +171,53 @@ export async function POST(request: NextRequest) {
 
   const result = await prisma.absence.createMany({ data: toCreate as never[] });
 
+  // Phase 5: check allocation impact for imported absences
+  const allocationImpacts: Array<{
+    resourceName: string;
+    absenceDates: string[];
+    allocationsCount: number;
+  }> = [];
+
+  if (affectedResourceIds.size > 0) {
+    const overlappingAllocations = await prisma.allocation.findMany({
+      where: {
+        resourceId: { in: [...affectedResourceIds] },
+        startDate: { lte: new Date(maxDate) },
+        endDate: { gte: new Date(minDate) },
+      },
+      select: { resourceId: true, startDate: true, endDate: true },
+    });
+
+    if (overlappingAllocations.length > 0) {
+      const allocByResource = new Map<string, typeof overlappingAllocations>();
+      for (const a of overlappingAllocations) {
+        const list = allocByResource.get(a.resourceId) || [];
+        list.push(a);
+        allocByResource.set(a.resourceId, list);
+      }
+
+      const absencesByResource = new Map<string, string[]>();
+      for (const c of toCreate) {
+        const dateStr = c.date.toISOString().split("T")[0];
+        const allocs = allocByResource.get(c.resourceId);
+        if (allocs?.some((a) => c.date >= a.startDate && c.date <= a.endDate)) {
+          const list = absencesByResource.get(c.resourceId) || [];
+          list.push(dateStr);
+          absencesByResource.set(c.resourceId, list);
+        }
+      }
+
+      for (const [resourceId, dates] of absencesByResource) {
+        const resource = allResources.find((r) => r.id === resourceId);
+        allocationImpacts.push({
+          resourceName: resource ? `${resource.lastName} ${resource.firstName}` : resourceId,
+          absenceDates: dates,
+          allocationsCount: allocByResource.get(resourceId)?.length || 0,
+        });
+      }
+    }
+  }
+
   const importLog = await prisma.importLog.create({
     data: {
       type: "ASSENZE",
@@ -189,5 +237,7 @@ export async function POST(request: NextRequest) {
     replacedRows: deleted.count,
     errorRows: rowErrors.length,
     errors: rowErrors,
+    warnings,
+    allocationImpacts,
   });
 }

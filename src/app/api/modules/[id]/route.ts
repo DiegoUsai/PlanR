@@ -12,6 +12,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     data: {
       name: body.name,
       description: body.description,
+      jiraComponent: body.jiraComponent,
     },
   });
 
@@ -21,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  const deps = await prisma.initiative.count({ where: { moduleId: id } });
+  const deps = await prisma.initiative.count({ where: { modules: { some: { id } } } });
   if (deps > 0) {
     return NextResponse.json(
       { error: `Impossibile eliminare: ${deps} iniziative collegate` },

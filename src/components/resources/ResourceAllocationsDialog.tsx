@@ -23,7 +23,7 @@ interface Allocation {
   lockType: string;
   initiative: {
     id: string;
-    code: string;
+    issueKey: string;
     title: string;
     status: string;
     application: { name: string };
@@ -97,7 +97,7 @@ export default function ResourceAllocationsDialog({
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.25 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 13 }}>
-                      {alloc.initiative.code}
+                      {alloc.initiative.issueKey}
                     </Typography>
                     <Typography variant="body2" noWrap sx={{ fontSize: 13 }}>
                       {alloc.initiative.title}

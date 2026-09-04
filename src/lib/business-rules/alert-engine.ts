@@ -230,14 +230,14 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
 
   const pendingInitiatives = await prisma.initiative.findMany({
     where: {
-      status: "READY_PENDING_RESOURCES",
+      status: "PENDING_RESOURCES",
       updatedAt: { lt: twoWeeksAgo },
     },
   });
 
   for (const init of pendingInitiatives) {
     alerts.push({
-      type: "READY_PENDING_RESOURCES",
+      type: "PENDING_RESOURCES",
       severity: "OPERATIVO",
       entityType: "Initiative",
       entityId: init.id,
@@ -250,9 +250,8 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
     where: {
       status: {
         in: [
-          "IN_ATTESA_DI_ALLOCAZIONE",
-          "READY_PENDING_RESOURCES",
-          "ALLOCATO",
+          "ATTESA_DI_ALLOCAZIONE",
+          "PENDING_RESOURCES",
         ],
       },
       allocations: { none: {} },
@@ -270,15 +269,18 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
   }
 
   // Costo > valore economico
-  const valueMap: Record<string, number> = {
-    LT_5K: 5000,
-    DA_5K_A_10K: 10000,
-    DA_10K_A_15K: 15000,
-    DA_15K_A_20K: 20000,
-    DA_20K_A_30K: 30000,
-    DA_30K_A_40K: 40000,
-    GT_40K: 50000,
-  };
+  function parseEconomicValue(val: string | null): number {
+    if (!val) return 0;
+    const v = val.toLowerCase().replace(/\s/g, "");
+    if (v.includes(">40")) return 50000;
+    if (v.includes("30") && v.includes("40")) return 40000;
+    if (v.includes("20") && v.includes("30")) return 30000;
+    if (v.includes("15") && v.includes("20")) return 20000;
+    if (v.includes("10") && v.includes("15")) return 15000;
+    if (v.includes("5") && v.includes("10")) return 10000;
+    if (v.includes("<5") || v.includes("< 5")) return 5000;
+    return 0;
+  }
 
   const initiativesWithCost = await prisma.initiative.findMany({
     where: {
@@ -296,7 +298,7 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
 
   for (const init of initiativesWithCost) {
     if (!init.economicValue) continue;
-    const maxValue = valueMap[init.economicValue] ?? 0;
+    const maxValue = parseEconomicValue(init.economicValue);
     if (maxValue === 0) continue;
 
     let totalCost = 0;
@@ -379,12 +381,12 @@ export async function computeAlerts(): Promise<AlertCandidate[]> {
 
   // Accumulo Pending Resources: > 3 iniziative sullo stesso profilo
   const pendingByProfile = await prisma.initiative.findMany({
-    where: { status: "READY_PENDING_RESOURCES" },
+    where: { status: "PENDING_RESOURCES" },
   });
 
   const profileCount = new Map<string, number>();
   for (const init of pendingByProfile) {
-    const profiles = init.requiredProfiles?.split(",").map((p) => p.trim()) ?? [];
+    const profiles = init.figureNecessarie?.split(",").map((p) => p.trim()) ?? [];
     for (const profile of profiles) {
       if (profile) {
         profileCount.set(profile, (profileCount.get(profile) ?? 0) + 1);

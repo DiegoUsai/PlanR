@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       include: { initiative: { include: { contract: true } } },
     });
 
-    if (current && new Date(endDate) > current.initiative.contract.endDate) {
+    if (current?.initiative.contract && new Date(endDate) > current.initiative.contract.endDate) {
       if (!body.confirm) {
         return NextResponse.json(
           {

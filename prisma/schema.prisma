@@ -17,61 +17,21 @@ enum ContractType {
   APPALTO
 }
 
-enum InitiativeType {
-  MEV
-  MAD
-}
-
 enum InitiativeStatus {
-  IN_ATTESA_DI_ALLOCAZIONE
-  ALLOCATO
-  IN_LAVORAZIONE
+  ATTESA_DI_ALLOCAZIONE
+  ALLOCATO_SOFT_LOCK
+  CONFERMATO_HARD_LOCK
+  PENDING_RESOURCES
   COMPLETATO
-  READY_PENDING_RESOURCES
-  IN_ATTESA_COPERTURA_CONTRATTUALE
-  FUORI_SCOPE
+  REJECTED
 }
 
 enum Priority {
-  ALTA
-  MEDIA
-  BASSA
-}
-
-enum SizingSize {
-  XS
-  S
-  M
-  L
-  XL
-}
-
-enum Polarity {
-  PRIMA_META
-  SECONDA_META
-}
-
-enum AnalysisTestSize {
-  A_XS
-  A_S
-  A_M
-  A_L
-}
-
-enum ReliabilityLevel {
-  ALTA
-  MEDIA
-  BASSA
-}
-
-enum EconomicValue {
-  UNDER_5K
-  FROM_5K_TO_10K
-  FROM_10K_TO_15K
-  FROM_15K_TO_20K
-  FROM_20K_TO_30K
-  FROM_30K_TO_40K
-  OVER_40K
+  HIGHEST
+  HIGH
+  MEDIUM
+  LOW
+  LOWEST
 }
 
 enum ResourceRole {
@@ -132,7 +92,7 @@ enum AlertType {
   SOVRA_ALLOCAZIONE
   SOTTO_UTILIZZO
   SCADENZA_SOFT_LOCK
-  READY_PENDING_RESOURCES
+  PENDING_RESOURCES
   INIZIATIVA_SENZA_ALLOCAZIONI
   PROSSIMITA_SCADENZA_CONTRATTO
   SLITTAMENTO_COEFFICIENTE
@@ -140,6 +100,9 @@ enum AlertType {
   PROFILO_SATURO
   PIPELINE_VALUE_ELEVATA
   ACCUMULO_PENDING_RESOURCES
+  CONTRATTO_NON_CENSITO
+  REJECTED_CON_ALLOCAZIONI
+  ANOMALIE_REIMPORT
 }
 
 enum AlertSeverity {
@@ -156,6 +119,7 @@ enum AlertStatus {
 
 enum ImportType {
   RISORSE
+  PARAMETRI
   ASSENZE
   INIZIATIVE_JIRA
   CONSUNTIVO
@@ -182,15 +146,16 @@ model Application {
 }
 
 model Module {
-  id            String   @id @default(uuid())
-  applicationId String
-  name          String
-  description   String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(uuid())
+  applicationId  String
+  name           String
+  jiraComponent  String?
+  description    String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  application Application  @relation(fields: [applicationId], references: [id])
-  initiatives Initiative[]
+  application  Application  @relation(fields: [applicationId], references: [id])
+  initiatives  Initiative[] @relation("InitiativeModules")
 
   @@map("modules")
 }
@@ -210,6 +175,7 @@ model Client {
 model Contract {
   id                  String       @id @default(uuid())
   identifier          String
+  idContrattoJira     String?
   type                ContractType
   clientSlug          String
   amount              Decimal      @db.Decimal(12, 2)
@@ -228,36 +194,43 @@ model Contract {
 }
 
 model Initiative {
-  id                    String            @id @default(uuid())
-  code                  String            @unique
-  applicationId         String
-  moduleId              String?
-  contractId            String
-  title                 String
-  description           String?           @db.Text
-  type                  InitiativeType
-  priority              Priority
-  desiredStartDate      DateTime?         @db.Date
-  desiredEndDate        DateTime?         @db.Date
-  plannedStartDate      DateTime?         @db.Date
-  plannedEndDate        DateTime?         @db.Date
-  estimatedDays         Decimal?          @db.Decimal(8, 2)
-  requiredProfiles      String?           @db.Text
-  status                InitiativeStatus  @default(IN_ATTESA_DI_ALLOCAZIONE)
-  sizingSize            SizingSize?
-  polarity              Polarity?
-  analysisTestSize      AnalysisTestSize?
-  affidabilitaStima     ReliabilityLevel?
-  vincoliCriticita      String?           @db.Text
-  reuseFlag             Boolean           @default(false)
-  economicValue         EconomicValue?
-  notes                 String?           @db.Text
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  id                       String            @id @default(uuid())
+  issueKey                 String            @unique
+  issueId                  Int
+  applicationId            String
+  contractId               String?
+  title                    String
+  description              String?           @db.Text
+  tipologia                String?
+  priority                 Priority
+  statoJira                String
+  status                   InitiativeStatus  @default(ATTESA_DI_ALLOCAZIONE)
+  desiredEndDate           DateTime?         @db.Date
+  plannedStartDate         DateTime?         @db.Date
+  plannedEndDate           DateTime?         @db.Date
+  estimatedDays            Decimal?          @db.Decimal(8, 2)
+  economicValue            String?
+  richiedente              String?
+  dataRichiesta            DateTime?         @db.Date
+  tenant                   String?
+  corsiaUrgenza            String?
+  engineeringExcellence    String?
+  sizingSviluppo           String?
+  polaritaSizingSviluppo   String?
+  sizingAnalisi            String?
+  polaritaSizingAnalisi    String?
+  affidabilitaStima        String?
+  analisiPtf               String?
+  figureNecessarie         String?           @db.Text
+  vincoliCriticita         String?           @db.Text
+  inRiusoDa                String?
+  notes                    String?           @db.Text
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
 
   application Application  @relation(fields: [applicationId], references: [id])
-  module      Module?      @relation(fields: [moduleId], references: [id])
-  contract    Contract     @relation(fields: [contractId], references: [id])
+  contract    Contract?     @relation(fields: [contractId], references: [id])
+  modules     Module[]      @relation("InitiativeModules")
   allocations Allocation[]
   consuntivi  Consuntivo[]
 

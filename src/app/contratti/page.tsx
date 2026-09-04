@@ -37,6 +37,7 @@ interface Contract {
   endDate: string;
   pmEffortPercentage: string;
   notes: string | null;
+  idContrattoJira: string | null;
   applications: Array<{ id: string; name: string }>;
   _count: { initiatives: number };
 }
@@ -56,6 +57,7 @@ const emptyForm = {
   endDate: "",
   pmEffortPercentage: "5",
   notes: "",
+  idContrattoJira: "",
   applicationIds: [] as string[],
 };
 
@@ -108,6 +110,7 @@ export default function ContrattiPage() {
       endDate: contract.endDate.split("T")[0],
       pmEffortPercentage: String(contract.pmEffortPercentage),
       notes: contract.notes || "",
+      idContrattoJira: contract.idContrattoJira || "",
       applicationIds: contract.applications.map((a) => a.id),
     });
     setDialogOpen(true);
@@ -144,6 +147,7 @@ export default function ContrattiPage() {
       endDate: form.endDate,
       pmEffortPercentage: Number(form.pmEffortPercentage),
       notes: form.notes || undefined,
+      idContrattoJira: form.idContrattoJira || undefined,
       applicationIds: form.applicationIds,
     };
 
@@ -456,6 +460,14 @@ export default function ContrattiPage() {
               )}
               size="small"
               sx={{ gridColumn: "1 / -1" }}
+            />
+            <TextField
+              label="ID Contratto Jira"
+              value={form.idContrattoJira}
+              onChange={(e) => updateForm("idContrattoJira", e.target.value)}
+              size="small"
+              placeholder="Valore del campo 'Contratti BU DOC' su Jira"
+              helperText="Chiave di match per import CSV iniziative"
             />
             <TextField
               label="Note"

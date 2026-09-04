@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { updateInitiativeSchema } from "@/lib/validators/initiative";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -11,7 +10,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     include: {
       application: true,
       contract: true,
-      module: true,
+      modules: true,
       allocations: {
         include: { resource: true },
         orderBy: { startDate: "asc" },
@@ -29,55 +28,19 @@ export async function GET(_request: NextRequest, { params }: Params) {
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await request.json();
-  const parsed = updateInitiativeSchema.safeParse(body);
 
-  if (!parsed.success) {
+  if (typeof body.notes !== "string" && body.notes !== null) {
     return NextResponse.json(
-      { error: "Dati non validi", details: parsed.error.flatten() },
+      { error: "Solo il campo 'notes' è modificabile" },
       { status: 400 }
     );
   }
 
-  const {
-    desiredStartDate,
-    desiredEndDate,
-    ...data
-  } = parsed.data;
-
-  const updateData: Record<string, unknown> = { ...data };
-  if (desiredStartDate !== undefined)
-    updateData.desiredStartDate = desiredStartDate ? new Date(desiredStartDate) : null;
-  if (desiredEndDate !== undefined)
-    updateData.desiredEndDate = desiredEndDate ? new Date(desiredEndDate) : null;
-
   const initiative = await prisma.initiative.update({
     where: { id },
-    data: updateData,
-    include: { application: true, contract: true, module: true },
+    data: { notes: body.notes },
+    include: { application: true, contract: true, modules: true },
   });
 
   return NextResponse.json(initiative);
-}
-
-export async function DELETE(_request: NextRequest, { params }: Params) {
-  const { id } = await params;
-
-  const [allocations, consuntivi] = await Promise.all([
-    prisma.allocation.count({ where: { initiativeId: id } }),
-    prisma.consuntivo.count({ where: { initiativeId: id } }),
-  ]);
-
-  const deps = allocations + consuntivi;
-  if (deps > 0) {
-    const parts = [];
-    if (allocations > 0) parts.push(`${allocations} allocazioni`);
-    if (consuntivi > 0) parts.push(`${consuntivi} consuntivi`);
-    return NextResponse.json(
-      { error: `Impossibile eliminare: ${parts.join(", ")} collegate` },
-      { status: 409 }
-    );
-  }
-
-  await prisma.initiative.delete({ where: { id } });
-  return NextResponse.json({ deleted: true });
 }

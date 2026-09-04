@@ -62,13 +62,13 @@ const emptyForm = {
 
 interface InitiativeContext {
   id: string;
-  code: string;
+  issueKey: string;
   title: string;
   estimatedDays: string | null;
-  desiredStartDate: string | null;
+  plannedStartDate: string | null;
   desiredEndDate: string | null;
   application: { name: string };
-  contract: { identifier: string };
+  contract: { identifier: string } | null;
 }
 
 export default function AllocationManager({
@@ -332,7 +332,7 @@ export default function AllocationManager({
     <>
       <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle>
-          Allocazioni — {initiative.code} {initiative.title}
+          Allocazioni — {initiative.issueKey} {initiative.title}
         </DialogTitle>
         <DialogContent>
           <Box
@@ -349,17 +349,19 @@ export default function AllocationManager({
             <Typography variant="body2">
               <strong>Applicativo:</strong> {initiative.application.name}
             </Typography>
-            <Typography variant="body2">
-              <strong>Contratto:</strong> {initiative.contract.identifier}
-            </Typography>
+            {initiative.contract && (
+              <Typography variant="body2">
+                <strong>Contratto:</strong> {initiative.contract.identifier}
+              </Typography>
+            )}
             {initiative.estimatedDays && (
               <Typography variant="body2">
                 <strong>GG stimati:</strong> {initiative.estimatedDays}
               </Typography>
             )}
-            {initiative.desiredStartDate && (
+            {initiative.plannedStartDate && (
               <Typography variant="body2">
-                <strong>Inizio:</strong> {dayjs(initiative.desiredStartDate).format("DD/MM/YYYY")}
+                <strong>Inizio:</strong> {dayjs(initiative.plannedStartDate).format("DD/MM/YYYY")}
               </Typography>
             )}
             {initiative.desiredEndDate && (

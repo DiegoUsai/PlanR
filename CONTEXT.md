@@ -3,7 +3,7 @@
 Questo documento definisce i concetti del dominio dell'applicazione PlanR. E' la fonte di verita per la terminologia e le regole di business. Ogni modifica al modello dati deve essere verificata contro questo glossario.
 
 **Documento di riferimento:** [[BU_Documentale_SAP_Demand_Resource_Management_Draft]] (Draft v3, 6 luglio 2026).
-**Specifiche applicazione:** docs/spec.md (Draft v2.1, 31 agosto 2026).
+**Specifiche applicazione:** docs/spec.md (Draft v2.4, 3 settembre 2026).
 
 ---
 
@@ -30,7 +30,7 @@ Soluzione software gestita dalla BU. E' il contenitore di primo livello: ogni in
 
 ### Modulo (Module)
 
-Componente logico di un applicativo. Nella prima versione e **solo anagrafica** — non sviluppato funzionalmente. Serve per il tracciamento delle competenze a livello piu granulare dell'applicativo.
+Componente logico di un applicativo. Relazione **N:N** con Iniziativa (un'iniziativa puo coinvolgere piu moduli). Campo `jiraComponent` per matching automatico con la colonna "Components" del CSV Jira durante l'import iniziative.
 
 ### Cliente (Client)
 
@@ -50,31 +50,39 @@ Contratto attivo con un cliente, legato a uno o piu applicativi. Determina il pe
 |---|---|
 | cliente | FK -> Cliente (slug). Creabile inline dal form contratto |
 | tipo | **Subappalto** (PA, rendicontazione pesante) o **Appalto** (diretto, piu snello) |
+| id_contratto_jira | Identificativo Jira del contratto (campo "Contratti BU DOC"). Chiave di match per import CSV iniziative. Se non trovato genera alert |
 | data_fine | Vincolo di pianificazione: warning con conferma (non blocco) se allocazioni la superano |
 | percentuale_effort_pm | % di effort PM generata per ogni iniziativa (es. 5%). Varia per contratto perche contratti diversi hanno complessita amministrativa diversa |
 
 ### Iniziativa (Initiative)
 
-Intervento (MEV o MAD) su un applicativo nel perimetro di un contratto. Corrisponde all'**epica Jira** nel processo di Demand Management.
+Intervento su un applicativo, nel perimetro di un contratto. Corrisponde all'**epica Jira** nel processo di Demand Management. Le iniziative vengono importate **esclusivamente tramite CSV** da Jira — non sono creabili ne cancellabili manualmente. Tutti i campi tranne `note` sono **di sola lettura**.
 
 | Campo chiave | Significato di business |
 |---|---|
-| codice | Codice epica Jira (es. "DOC-142"). Campo univoco, obbligatorio. Identifica l'iniziativa nel sistema Jira |
-| tipologia | **MEV** (Manutenzione Evolutiva) o **MAD** (Manutenzione Adeguativa) |
-| status | Ciclo di vita: In Attesa di Allocazione -> Allocato -> In Lavorazione -> Completato. Stati laterali: Ready - Pending Resources, In Attesa di Copertura Contrattuale, Fuori Scope |
-| affidabilita_stima | Alta, Media, Bassa — indicatore sintetico di quanto la stima e affidabile (unifica rischio tecnico e rischio stima) |
-| vincoli_criticita | Note testuali su vincoli e criticita identificati dal PTF (dipendenze, complessita, debito tecnico) |
-| taglia_sizing | XS/S/M/L/XL — importata da Jira (sezione 6.1 Draft) |
-| polarita | Prima meta / Seconda meta — impatta il buffer di stima (sezione 6.2 Draft) |
-| stima_gg | Stima complessiva in giorni/uomo (sviluppo + analisi/test) |
-| figure_necessarie | Fabbisogno generico (es. "2 Senior Dev, 1 Analista Funzionale, 1 Tech Leader") — campo testuale |
-| valore_economico | Fascia di valore stimato (<5K, 5-10K, ... >40K) — importato da Jira |
-| data_fine_desiderata | Data di consegna indicata dal PM nell'epica Jira |
-| data_inizio_pianificata | Calcolata: data_fine_desiderata - effort_pianificato (con buffer per taglia) |
+| issue_key | Chiave epica Jira (es. "DBD-29"). Univoca, chiave di match per re-import |
+| issue_id | ID numerico Jira |
+| tipologia | Testo libero da Jira (es. "Consumo/Misura -> MEV") |
+| priorita | Highest, High, Medium, Low, Lowest (valori Jira) |
+| stato_jira | Stato corrente su Jira (testo diretto) |
+| status | Stato interno calcolato dalla macchina a stati: Attesa di Allocazione, Allocato Soft Lock, Confermato Hard Lock, Pending Resources, Completato, Rejected |
+| stima_gg | Stima in giorni lavorativi, convertita da secondi Jira (Original estimate / 28800) |
+| data_fine_desiderata | Due date Jira |
+| data_inizio_pianificata | MIN(data_inizio allocazioni) — calcolata, non da import |
+| contratto | FK -> Contratto (nullable). Match per id_contratto_jira su "Contratti BU DOC" |
+| moduli | Relazione N:N con Modulo. Match per jiraComponent su "Components" |
+| valore_economico | Testo libero da Jira (es. "30k - 40k", "> 40k") |
+| affidabilita_stima | Testo libero da Jira |
+| figure_necessarie | Testo libero da Jira |
+| vincoli_criticita | Testo libero da Jira |
+| note | Unico campo editabile dall'utente |
 
-**Buffer per taglia e polarita (sezione 7.2 Draft):**
-- XS/S/M: buffer 20%
-- L/XL: buffer 30%
+**Macchina a stati:**
+- Mapping stato Jira: Stimato -> Attesa di Allocazione, Approvato -> Confermato Hard Lock, Rejected -> Rejected
+- Stati calcolati: Allocato Soft Lock (allocazioni soft coprono stima_gg), Pending Resources (allocazioni non coprono stima_gg), Completato (data_fine ultima allocazione raggiunta)
+- Stati non pianificabili (To Do, Studio fattibilita, Pronta per la stima): **non vengono importati**
+
+**Re-import con anomalie:** il re-import confronta dati esistenti con CSV. Anomalie (variazione stima, date, priorita, tipologia, stato) vengono bloccate e richiedono conferma del D&R Manager. Rejected con allocazioni attive genera alert per rilascio manuale.
 
 ### Risorsa (Resource)
 

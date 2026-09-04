@@ -24,6 +24,7 @@ const BELONGING_MAP: Record<string, string> = {
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
+  const mode = (formData.get("mode") as string) || "append";
 
   if (!file) {
     return NextResponse.json({ error: "File CSV obbligatorio" }, { status: 400 });
@@ -46,7 +47,6 @@ export async function POST(request: NextRequest) {
 
   const rowErrors: { row: number; field: string; message: string }[] = [];
 
-  // Phase 1: validate all rows
   interface ValidRow {
     rowNum: number;
     lastName: string;
@@ -94,20 +94,19 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Phase 2: batch-load all existing resources
   const allResources = await prisma.resource.findMany({
-    select: { id: true, firstName: true, lastName: true, employeeId: true, notes: true },
+    select: { id: true, firstName: true, lastName: true, employeeId: true, notes: true, attivo: true },
   });
-  const byEmployeeId = new Map<string, typeof allResources[0]>();
-  const byName = new Map<string, typeof allResources[0]>();
+  const byEmployeeId = new Map<string, (typeof allResources)[0]>();
+  const byName = new Map<string, (typeof allResources)[0]>();
   for (const r of allResources) {
     if (r.employeeId) byEmployeeId.set(r.employeeId, r);
     byName.set(`${r.lastName}|${r.firstName}`, r);
   }
 
-  // Phase 3: separate creates and updates
   let importedCount = 0;
   let updatedCount = 0;
+  let skippedCount = 0;
 
   const toCreate: Array<{
     lastName: string;
@@ -119,24 +118,30 @@ export async function POST(request: NextRequest) {
     notes: string | null;
   }> = [];
   const updateOps: Array<ReturnType<typeof prisma.resource.update>> = [];
+  const matchedResourceIds = new Set<string>();
 
   for (const row of validRows) {
     const existing = (row.employeeId && byEmployeeId.get(row.employeeId))
       || byName.get(`${row.lastName}|${row.firstName}`);
 
     if (existing) {
-      updateOps.push(
-        prisma.resource.update({
-          where: { id: existing.id },
-          data: {
-            employeeId: row.employeeId || existing.employeeId,
-            type: row.type as never,
-            belonging: row.belonging as never,
-            isPTF: row.isPTF,
-            notes: row.notes || existing.notes,
-          },
-        })
-      );
+      matchedResourceIds.add(existing.id);
+      if (mode === "override") {
+        updateOps.push(
+          prisma.resource.update({
+            where: { id: existing.id },
+            data: {
+              employeeId: row.employeeId || existing.employeeId,
+              type: row.type as never,
+              belonging: row.belonging as never,
+              isPTF: row.isPTF,
+              notes: row.notes || existing.notes,
+            },
+          })
+        );
+      } else {
+        skippedCount++;
+      }
     } else {
       toCreate.push({
         lastName: row.lastName,
@@ -163,6 +168,41 @@ export async function POST(request: NextRequest) {
     updatedCount = updateOps.length;
   }
 
+  let absentResources: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    futureAllocationsCount: number;
+  }> = [];
+
+  if (mode === "override") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const absent = allResources.filter(
+      (r) => r.attivo !== false && !matchedResourceIds.has(r.id)
+    );
+
+    if (absent.length > 0) {
+      const futureAllocations = await prisma.allocation.groupBy({
+        by: ["resourceId"],
+        where: {
+          resourceId: { in: absent.map((r) => r.id) },
+          endDate: { gt: today },
+        },
+        _count: true,
+      });
+      const futureMap = new Map(futureAllocations.map((a) => [a.resourceId, a._count]));
+
+      absentResources = absent.map((r) => ({
+        id: r.id,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        futureAllocationsCount: futureMap.get(r.id) || 0,
+      }));
+    }
+  }
+
   const importLog = await prisma.importLog.create({
     data: {
       type: "RISORSE",
@@ -177,10 +217,13 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     id: importLog.id,
+    mode,
     totalRows: data.length,
     importedRows: importedCount,
     updatedRows: updatedCount,
+    skippedRows: skippedCount,
     errorRows: rowErrors.length,
     errors: rowErrors,
+    absentResources,
   });
 }

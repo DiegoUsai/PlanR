@@ -36,44 +36,25 @@ const LEVEL_MAP: Record<string, string> = {
   Senior: "SENIOR", SENIOR: "SENIOR",
 };
 
-export async function POST(request: NextRequest) {
-  const formData = await request.formData();
-  const file = formData.get("file") as File | null;
+interface ValidRow {
+  rowNum: number;
+  employeeId: string;
+  role: string;
+  level: string;
+  weeklyHours: number;
+  dailyCost: number;
+  productivityCoeff: number;
+  weeklyHoursBuffer: number | null;
+  validFrom: Date;
+  validTo: Date | null;
+}
 
-  if (!file) {
-    return NextResponse.json({ error: "File CSV obbligatorio" }, { status: 400 });
-  }
+interface ResolvedRow extends Omit<ValidRow, "rowNum" | "employeeId"> {
+  resourceId: string;
+}
 
-  const text = await file.text();
-  const { data, errors: parseErrors } = Papa.parse<ParametriRow>(text, {
-    header: true,
-    skipEmptyLines: true,
-    delimiter: ";",
-    transformHeader: (h: string) => h.trim(),
-  });
-
-  if (parseErrors.length > 0) {
-    return NextResponse.json(
-      { error: "Errore parsing CSV", details: parseErrors },
-      { status: 400 }
-    );
-  }
-
+function parseAndValidateRows(data: ParametriRow[]) {
   const rowErrors: { row: number; field: string; message: string }[] = [];
-
-  // Phase 1: validate all rows
-  interface ValidRow {
-    rowNum: number;
-    employeeId: string;
-    role: string;
-    level: string;
-    weeklyHours: number;
-    dailyCost: number;
-    productivityCoeff: number;
-    weeklyHoursBuffer: number | null;
-    validFrom: Date;
-    validTo: Date | null;
-  }
   const validRows: ValidRow[] = [];
 
   for (let i = 0; i < data.length; i++) {
@@ -142,40 +123,83 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Phase 2: batch-load all resources by employeeId
+  return { validRows, rowErrors };
+}
+
+function datesCovered(
+  allocationStart: Date,
+  allocationEnd: Date,
+  paramPeriods: Array<{ validFrom: Date; validTo: Date | null }>
+): boolean {
+  const sorted = [...paramPeriods].sort(
+    (a, b) => a.validFrom.getTime() - b.validFrom.getTime()
+  );
+  for (const p of sorted) {
+    const pEnd = p.validTo ?? new Date("2099-12-31");
+    if (p.validFrom <= allocationStart && pEnd >= allocationEnd) return true;
+    if (p.validFrom <= allocationStart && pEnd >= allocationStart) {
+      if (pEnd >= allocationEnd) return true;
+    }
+  }
+  let cursor = new Date(allocationStart);
+  for (const p of sorted) {
+    const pEnd = p.validTo ?? new Date("2099-12-31");
+    if (p.validFrom > cursor) return false;
+    if (pEnd >= cursor) {
+      cursor = new Date(pEnd);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    if (cursor > allocationEnd) return true;
+  }
+  return cursor > allocationEnd;
+}
+
+export async function POST(request: NextRequest) {
+  const formData = await request.formData();
+  const file = formData.get("file") as File | null;
+  const mode = (formData.get("mode") as string) || "append";
+
+  if (!file) {
+    return NextResponse.json({ error: "File CSV obbligatorio" }, { status: 400 });
+  }
+
+  const text = await file.text();
+  const { data, errors: parseErrors } = Papa.parse<ParametriRow>(text, {
+    header: true,
+    skipEmptyLines: true,
+    delimiter: ";",
+    transformHeader: (h: string) => h.trim(),
+  });
+
+  if (parseErrors.length > 0) {
+    return NextResponse.json(
+      { error: "Errore parsing CSV", details: parseErrors },
+      { status: 400 }
+    );
+  }
+
+  const { validRows, rowErrors } = parseAndValidateRows(data);
+
   const allResources = await prisma.resource.findMany({
     where: { employeeId: { not: null } },
-    select: { id: true, employeeId: true },
+    select: { id: true, employeeId: true, firstName: true, lastName: true },
   });
-  const resourceMap = new Map<string, string>();
+  const resourceMap = new Map<string, { id: string; name: string }>();
   for (const r of allResources) {
-    if (r.employeeId) resourceMap.set(r.employeeId, r.id);
+    if (r.employeeId) resourceMap.set(r.employeeId, { id: r.id, name: `${r.lastName} ${r.firstName}` });
   }
 
-  // Phase 3: resolve resources, collect resource IDs for parameter lookup
-  interface ResolvedRow {
-    resourceId: string;
-    role: string;
-    level: string;
-    weeklyHours: number;
-    dailyCost: number;
-    productivityCoeff: number;
-    weeklyHoursBuffer: number | null;
-    validFrom: Date;
-    validTo: Date | null;
-  }
   const resolvedRows: ResolvedRow[] = [];
-  const resourceIds = new Set<string>();
+  const rowsByResource = new Map<string, ResolvedRow[]>();
 
   for (const row of validRows) {
-    const resourceId = resourceMap.get(row.employeeId);
-    if (!resourceId) {
+    const resource = resourceMap.get(row.employeeId);
+    if (!resource) {
       rowErrors.push({ row: row.rowNum, field: "id_dipendente", message: `Risorsa non trovata: "${row.employeeId}"` });
       continue;
     }
-    resourceIds.add(resourceId);
-    resolvedRows.push({
-      resourceId,
+    const resolved: ResolvedRow = {
+      resourceId: resource.id,
       role: row.role,
       level: row.level,
       weeklyHours: row.weeklyHours,
@@ -184,13 +208,109 @@ export async function POST(request: NextRequest) {
       weeklyHoursBuffer: row.weeklyHoursBuffer,
       validFrom: row.validFrom,
       validTo: row.validTo,
+    };
+    resolvedRows.push(resolved);
+    const existing = rowsByResource.get(resource.id) || [];
+    existing.push(resolved);
+    rowsByResource.set(resource.id, existing);
+  }
+
+  if (mode === "override") {
+    const resourceIds = [...rowsByResource.keys()];
+    const activeAllocations = await prisma.allocation.findMany({
+      where: { resourceId: { in: resourceIds } },
+      select: { id: true, resourceId: true, startDate: true, endDate: true },
+    });
+
+    const gaps: Array<{
+      resourceId: string;
+      resourceName: string;
+      allocationStart: string;
+      allocationEnd: string;
+    }> = [];
+
+    for (const alloc of activeAllocations) {
+      const newParams = rowsByResource.get(alloc.resourceId);
+      if (!newParams) continue;
+      const periods = newParams.map((p) => ({
+        validFrom: p.validFrom,
+        validTo: p.validTo,
+      }));
+      if (!datesCovered(alloc.startDate, alloc.endDate, periods)) {
+        const resource = allResources.find((r) => r.id === alloc.resourceId);
+        gaps.push({
+          resourceId: alloc.resourceId,
+          resourceName: resource ? `${resource.lastName} ${resource.firstName}` : alloc.resourceId,
+          allocationStart: alloc.startDate.toISOString().split("T")[0],
+          allocationEnd: alloc.endDate.toISOString().split("T")[0],
+        });
+      }
+    }
+
+    if (gaps.length > 0) {
+      return NextResponse.json(
+        {
+          blocked: true,
+          error: "I nuovi parametri non coprono tutti i periodi con allocazioni attive",
+          gaps,
+        },
+        { status: 422 }
+      );
+    }
+
+    const deleteOps = resourceIds.map((rid) =>
+      prisma.resourceParameter.deleteMany({ where: { resourceId: rid } })
+    );
+    const BATCH = 50;
+    for (let i = 0; i < deleteOps.length; i += BATCH) {
+      await prisma.$transaction(deleteOps.slice(i, i + BATCH));
+    }
+
+    const createData = resolvedRows.map((r) => ({
+      resourceId: r.resourceId,
+      role: r.role as never,
+      level: r.level as never,
+      weeklyHours: r.weeklyHours,
+      dailyCost: r.dailyCost,
+      productivityCoeff: r.productivityCoeff,
+      weeklyHoursBuffer: r.weeklyHoursBuffer,
+      validFrom: r.validFrom,
+      validTo: r.validTo,
+    }));
+
+    const result = await prisma.resourceParameter.createMany({
+      data: createData as never[],
+      skipDuplicates: true,
+    });
+
+    const importLog = await prisma.importLog.create({
+      data: {
+        type: "PARAMETRI",
+        filename: file.name,
+        totalRows: data.length,
+        importedRows: result.count,
+        updatedRows: 0,
+        errorRows: rowErrors.length,
+        errors: rowErrors.length > 0 ? rowErrors : undefined,
+      },
+    });
+
+    return NextResponse.json({
+      id: importLog.id,
+      mode,
+      totalRows: data.length,
+      importedRows: result.count,
+      deletedParams: deleteOps.length,
+      errorRows: rowErrors.length,
+      errors: rowErrors,
     });
   }
 
-  // Phase 4: batch-load current parameters for affected resources
+  // Append mode: close-and-create (existing behavior)
+  const resourceIds = [...new Set(resolvedRows.map((r) => r.resourceId))];
   const currentParams = await prisma.resourceParameter.findMany({
     where: {
-      resourceId: { in: [...resourceIds] },
+      resourceId: { in: resourceIds },
       validTo: null,
     },
     select: { id: true, resourceId: true, validFrom: true },
@@ -203,7 +323,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Phase 5: build batch operations
   let importedCount = 0;
   let updatedCount = 0;
 
@@ -247,7 +366,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Phase 6: execute in batches
   if (closeOps.length > 0) {
     const BATCH_SIZE = 50;
     for (let i = 0; i < closeOps.length; i += BATCH_SIZE) {
@@ -257,13 +375,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (createData.length > 0) {
-    const result = await prisma.resourceParameter.createMany({ data: createData as never[], skipDuplicates: true });
+    const result = await prisma.resourceParameter.createMany({
+      data: createData as never[],
+      skipDuplicates: true,
+    });
     importedCount = result.count;
   }
 
   const importLog = await prisma.importLog.create({
     data: {
-      type: "RISORSE",
+      type: "PARAMETRI",
       filename: file.name,
       totalRows: data.length,
       importedRows: importedCount,
@@ -275,6 +396,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     id: importLog.id,
+    mode,
     totalRows: data.length,
     importedRows: importedCount,
     updatedRows: updatedCount,

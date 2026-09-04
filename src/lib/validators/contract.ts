@@ -11,6 +11,7 @@ export const createContractSchema = z.object({
   endDate: z.string().date(),
   pmEffortPercentage: z.number().min(0).max(100),
   notes: z.string().optional(),
+  idContrattoJira: z.string().optional(),
   applicationIds: z.array(z.string().uuid()).optional(),
 });
 
