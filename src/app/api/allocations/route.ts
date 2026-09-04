@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAllocationSchema } from "@/lib/validators/allocation";
 import { calculateEffortDays } from "@/lib/business-rules/working-days";
+import { reEvaluateInitiativeStatus } from "@/lib/business-rules/initiative-status";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -80,5 +81,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return NextResponse.json(allocation, { status: 201 });
+  const statusChange = await reEvaluateInitiativeStatus(prisma, data.initiativeId);
+
+  return NextResponse.json({ ...allocation, statusChange }, { status: 201 });
 }

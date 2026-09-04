@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateAllocationSchema } from "@/lib/validators/allocation";
 import { calculateEffortDays } from "@/lib/business-rules/working-days";
+import { reEvaluateInitiativeStatus } from "@/lib/business-rules/initiative-status";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -82,11 +83,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     },
   });
 
-  return NextResponse.json(allocation);
+  const statusChange = await reEvaluateInitiativeStatus(prisma, allocation.initiativeId);
+
+  return NextResponse.json({ ...allocation, statusChange });
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;
+  const allocation = await prisma.allocation.findUnique({
+    where: { id },
+    select: { initiativeId: true },
+  });
+
   await prisma.allocation.delete({ where: { id } });
-  return NextResponse.json({ deleted: true });
+
+  let statusChange = null;
+  if (allocation) {
+    statusChange = await reEvaluateInitiativeStatus(prisma, allocation.initiativeId);
+  }
+
+  return NextResponse.json({ deleted: true, statusChange });
 }

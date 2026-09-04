@@ -3,7 +3,7 @@
 Questo documento definisce i concetti del dominio dell'applicazione PlanR. E' la fonte di verita per la terminologia e le regole di business. Ogni modifica al modello dati deve essere verificata contro questo glossario.
 
 **Documento di riferimento:** [[BU_Documentale_SAP_Demand_Resource_Management_Draft]] (Draft v3, 6 luglio 2026).
-**Specifiche applicazione:** docs/spec.md (Draft v2.4, 3 settembre 2026).
+**Specifiche applicazione:** docs/spec.md (Draft v2.8, 3 settembre 2026).
 
 ---
 
@@ -77,9 +77,21 @@ Intervento su un applicativo, nel perimetro di un contratto. Corrisponde all'**e
 | vincoli_criticita | Testo libero da Jira |
 | note | Unico campo editabile dall'utente |
 
-**Macchina a stati:**
-- Mapping stato Jira: Stimato -> Attesa di Allocazione, Approvato -> Confermato Hard Lock, Rejected -> Rejected
-- Stati calcolati: Allocato Soft Lock (allocazioni soft coprono stima_gg), Pending Resources (allocazioni non coprono stima_gg), Completato (data_fine ultima allocazione raggiunta)
+**Macchina a stati (v2.8 — validazione condizionale):**
+Lo stato interno e determinato dalla **combinazione** stato Jira + copertura effort (allocazioni):
+
+| Stato Jira | Allocazioni | Stato interno |
+|---|---|---|
+| Stimato | Nessuna | Attesa di Allocazione |
+| Stimato | Presenti ma effort < stima_gg | Pending Resources |
+| Stimato | Effort >= stima_gg (qualsiasi tipo lock) | Allocato Soft Lock |
+| Approvato | Effort >= stima_gg | Confermato Hard Lock |
+| Approvato | Effort < stima_gg o nessuna | Pending Resources |
+| Rejected | Indipendente | Rejected |
+
+- **Completato:** iniziativa in Confermato Hard Lock la cui data_fine dell'ultima allocazione e stata superata. Rilevato da cron giornaliero + verifica al caricamento pagina
+- **Stimato non produce mai Confermato Hard Lock** — riflette la fase contrattuale (non approvato)
+- **Rivalutazione automatica:** ogni CRUD su allocazioni rivaluta lo stato dell'iniziativa collegata
 - Stati non pianificabili (To Do, Studio fattibilita, Pronta per la stima): **non vengono importati**
 
 **Re-import con anomalie:** il re-import confronta dati esistenti con CSV. Anomalie (variazione stima, date, priorita, tipologia, stato) vengono bloccate e richiedono conferma del D&R Manager. Rejected con allocazioni attive genera alert per rilascio manuale.

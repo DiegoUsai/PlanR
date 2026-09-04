@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeInitiativeStatus } from "@/lib/business-rules/initiative-status";
+import { reEvaluateInitiativeStatus } from "@/lib/business-rules/initiative-status";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -43,61 +43,14 @@ export async function POST(request: NextRequest) {
 
   const reEvaluated: Array<{
     id: string;
-    issueKey: string | null;
     oldStatus: string;
     newStatus: string;
   }> = [];
 
-  if (affectedInitiativeIds.length > 0) {
-    const initiatives = await prisma.initiative.findMany({
-      where: { id: { in: affectedInitiativeIds } },
-      include: {
-        allocations: {
-          select: {
-            allocatedEffortDays: true,
-            lockType: true,
-            endDate: true,
-          },
-        },
-      },
-    });
-
-    for (const init of initiatives) {
-      const totalAllocatedDays = init.allocations.reduce(
-        (sum: number, a: { allocatedEffortDays: unknown }) =>
-          sum + Number(a.allocatedEffortDays),
-        0
-      );
-      const hasHardLockOnly =
-        init.allocations.length > 0 &&
-        init.allocations.every((a: { lockType: string }) => a.lockType === "HARD");
-      const lastAllocationEndDate = init.allocations.length > 0
-        ? new Date(
-            Math.max(...init.allocations.map((a: { endDate: Date }) => a.endDate.getTime()))
-          )
-        : null;
-
-      const newStatus = computeInitiativeStatus({
-        statoJira: init.statoJira || "",
-        estimatedDays: init.estimatedDays ? Number(init.estimatedDays) : null,
-        totalAllocatedDays,
-        hasHardLockOnly,
-        lastAllocationEndDate,
-        today,
-      });
-
-      if (newStatus !== init.status) {
-        await prisma.initiative.update({
-          where: { id: init.id },
-          data: { status: newStatus },
-        });
-        reEvaluated.push({
-          id: init.id,
-          issueKey: init.issueKey,
-          oldStatus: init.status,
-          newStatus,
-        });
-      }
+  for (const initiativeId of affectedInitiativeIds) {
+    const result = await reEvaluateInitiativeStatus(prisma, initiativeId);
+    if (result) {
+      reEvaluated.push({ id: initiativeId, ...result });
     }
   }
 

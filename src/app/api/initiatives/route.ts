@@ -23,5 +23,33 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const staleIds: string[] = [];
+  for (const init of initiatives) {
+    if (init.status !== "CONFERMATO_HARD_LOCK") continue;
+    const lastAlloc = await prisma.allocation.findFirst({
+      where: { initiativeId: init.id },
+      orderBy: { endDate: "desc" },
+      select: { endDate: true },
+    });
+    if (lastAlloc && lastAlloc.endDate < today) {
+      staleIds.push(init.id);
+    }
+  }
+
+  if (staleIds.length > 0) {
+    await prisma.initiative.updateMany({
+      where: { id: { in: staleIds } },
+      data: { status: "COMPLETATO" },
+    });
+    for (const init of initiatives) {
+      if (staleIds.includes(init.id)) {
+        (init as Record<string, unknown>).status = "COMPLETATO";
+      }
+    }
+  }
+
   return NextResponse.json(initiatives);
 }

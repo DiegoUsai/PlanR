@@ -3,7 +3,7 @@
 |  |  |
 | :---- | :---- |
 | **Autore** | Diego Usai — BU Manager |
-| **Versione** | Draft v2.6 |
+| **Versione** | Draft v2.8 |
 | **Data** | 3 settembre 2026 |
 | **Stato** | Bozza di lavoro |
 | **Documento di riferimento** | [[BU_Documentale_SAP_Demand_Resource_Management_Draft]] (Draft v3, 6 luglio 2026) |
@@ -107,7 +107,7 @@ Rappresenta una soluzione software gestita dalla BU.
 
 #### Modulo
 
-Componente logico di un applicativo. Entità tracciata nella prima versione ma **non sviluppata funzionalmente** — serve come anagrafica per future evoluzioni.
+Componente logico di un applicativo. Utilizzato per la relazione N:N con le iniziative (campo `moduli` sull'Iniziativa) e come chiave di match per l'import CSV tramite il campo `jira_component`.
 
 | Campo | Tipo | Note |
 | :---- | :---- | :---- |
@@ -115,6 +115,7 @@ Componente logico di un applicativo. Entità tracciata nella prima versione ma *
 | **applicativo** | FK → Applicativo | |
 | **nome** | Stringa | Nome del modulo |
 | **descrizione** | Testo | Descrizione del modulo |
+| **jira_component** | Stringa (nullable) | Valore del campo "Components" di Jira usato come chiave di match durante l'import CSV (match case-insensitive). Es. "Sibar DOC - Conservazione", "Modulo MIT" |
 
 #### Cliente
 
@@ -159,7 +160,7 @@ Rappresenta un intervento (MEV, MAD o altro) su un applicativo, nel perimetro di
 | **issue_id** | Intero | CSV: Issue id | Identificativo numerico Jira |
 | **applicativo** | FK → Applicativo | CSV: Progetto BU DOC | Match per nome con l'anagrafica applicativi (es. SIBARDOC, SardegnaCAT, MIT, SIBARDEC) |
 | **contratto** | FK → Contratto (nullable) | CSV: Contratti BU DOC | Match per `id_contratto_jira` sull'entità Contratto. Se il valore non corrisponde a nessun contratto censito, viene generato un alert (sezione 8.1) |
-| **componenti** | Stringa (nullable) | CSV: Components | Componente Jira (es. "Sibar DOC - Conservazione", "Modulo MIT"). Valore testuale importato così com'è |
+| **moduli** | FK → Modulo[] (N:N) | CSV: Components | Relazione N:N con l'entità Modulo, risolta durante l'import tramite match su `jira_component` del Modulo (case-insensitive) o fallback su nome modulo. Se il CSV contiene più componenti separati da virgola, ciascuno viene risolto indipendentemente |
 | **titolo** | Stringa | CSV: Summary | Titolo dell'iniziativa |
 | **descrizione** | Testo (nullable) | CSV: Description | Descrizione dell'intervento (può essere multilinea) |
 | **tipologia** | Stringa (nullable) | CSV: Service Type | Tipologia di intervento così come estratta da Jira (es. "Consumo/Misura -> MEV"). Può essere vuota |
@@ -183,7 +184,7 @@ Rappresenta un intervento (MEV, MAD o altro) su un applicativo, nel perimetro di
 | **figure_necessarie** | Testo (nullable) | CSV: Figure necessarie | Fabbisogno di figure professionali |
 | **vincoli_criticita** | Testo (nullable) | CSV: Vincoli e/o criticità | Note su vincoli e criticità |
 | **in_riuso_da** | Stringa (nullable) | CSV: In riuso da | Progetto da cui l'iniziativa è in riuso |
-| **stato_jira** | Stringa | CSV: Status | Stato originale dell'epica Jira (es. "Stimato", "Approvato", "Rejected", "To Do", "Studio fattibilità", "Pronta per la stima") |
+| **stato_jira** | Stringa | CSV: Status | Stato originale dell'epica Jira (es. "Stimato", "Approvato", "Rejected"). Visibile solo nel drawer dettaglio, non come colonna della lista iniziative |
 | **status** | Enum | Sistema | Stato interno calcolato dalla macchina a stati (sezione successiva) |
 | **note** | Testo (nullable) | Sistema | Unico campo modificabile dall'utente: note libere del D&R Manager |
 
@@ -193,53 +194,53 @@ Rappresenta un intervento (MEV, MAD o altro) su un applicativo, nel perimetro di
 
 Le iniziative entrano nel sistema tramite **import CSV** (sezione 13.8). Lo `stato_jira` determina lo stato interno. Le transizioni avvengono in parte da import e in parte su azione del D&R Manager (allocazioni).
 
-**Mapping stato Jira → stato interno:**
+**Regola fondamentale:** lo stato interno non è determinato solo dallo stato Jira, ma dalla **combinazione** tra stato Jira e copertura dell'effort (allocazioni). Lo stato Jira definisce la *fase contrattuale* dell'iniziativa, la copertura dell'effort determina lo *stato operativo*.
 
-| Stato Jira | Stato interno | Descrizione |
+**Mapping stato Jira → stato interno (con validazione copertura):**
+
+| Stato Jira | Allocazioni | Stato interno risultante |
 | :---- | :---- | :---- |
-| To Do | **To Do** | L'iniziativa è stata registrata ma non è ancora in lavorazione. Non pianificabile |
-| Studio fattibilità | **Studio Fattibilità** | L'iniziativa è in fase di analisi di fattibilità. Non pianificabile |
-| Pronta per la stima | **Pronta per la Stima** | L'iniziativa è pronta per essere stimata. Non pianificabile |
-| Stimato | **Attesa di Allocazione** | L'iniziativa è stata stimata ed è pronta per essere pianificata. Il D&R Manager può creare allocazioni con **soft lock** |
-| Approvato | **Confermato Hard Lock** | L'approvazione contrattuale è arrivata. Le allocazioni soft devono essere convertite in **hard lock** |
-| Rejected | **Rejected** | L'iniziativa è stata rifiutata. Il sistema segnala le allocazioni attive da rilasciare con **conferma manuale** del D&R Manager |
+| Stimato | Nessuna allocazione | **Attesa di Allocazione** |
+| Stimato | Allocazioni presenti ma effort non coperto | **Pending Resources** |
+| Stimato | Allocazioni soft coprono `stima_gg` | **Allocato Soft Lock** |
+| Approvato | Allocazioni soft/hard coprono `stima_gg` | **Confermato Hard Lock** |
+| Approvato | Allocazioni presenti ma effort non coperto | **Pending Resources** |
+| Approvato | Nessuna allocazione | **Pending Resources** |
+| Rejected | — (indipendente dalle allocazioni) | **Rejected** |
+
+> **Stati non pianificabili scartati:** le iniziative con stato Jira "To Do", "Studio fattibilità" e "Pronta per la stima" vengono **scartate durante l'import** (non inserite nel sistema). Entrano nel sistema solo quando il loro stato Jira passa a "Stimato" o superiore, rilevato al successivo import CSV. La visibilità sulla pipeline pre-stima resta su Jira.
 
 **Stati interni calcolati (non derivati da Jira):**
 
 | Stato interno | Condizione |
 | :---- | :---- |
-| **Allocato Soft Lock** | Almeno un'allocazione soft lock copre l'intero `stima_gg` |
-| **Pending Resources** | Le allocazioni (soft o hard) non coprono l'intero `stima_gg` |
 | **Completato** | Raggiunta la `data_fine` dell'ultima allocazione attiva |
 
-> **Stati non pianificabili:** le iniziative in stato To Do, Studio Fattibilità e Pronta per la Stima sono visibili nel sistema ma il D&R Manager **non può creare allocazioni** su di esse. Diventano pianificabili solo quando lo stato Jira passa a "Stimato" (o superiore) tramite re-import CSV.
+Il sistema ha **6 stati interni**: Attesa di Allocazione, Allocato Soft Lock, Confermato Hard Lock, Pending Resources, Completato, Rejected.
 
 **Transizioni:**
 
 ```
-To Do / Studio Fattibilità / Pronta per la Stima
-    → Attesa di Allocazione              (re-import CSV con stato Jira "Stimato")
-    → Confermato Hard Lock               (re-import CSV con stato Jira "Approvato")
-    → Rejected                           (re-import CSV con stato Jira "Rejected")
-
-Attesa di Allocazione
+Attesa di Allocazione (Jira "Stimato", nessuna allocazione)
+    → Pending Resources                  (allocazione creata ma non copre stima_gg)
     → Allocato Soft Lock                 (allocazioni soft coprono stima_gg)
-    → Pending Resources                  (allocazioni soft non coprono stima_gg)
 
-Allocato Soft Lock
-    → Confermato Hard Lock               (re-import CSV con stato Jira "Approvato")
-    → Pending Resources                  (allocazione rimossa/ridotta)
-    → Rejected                           (re-import CSV con stato Jira "Rejected")
+Allocato Soft Lock (Jira "Stimato", effort coperto)
+    → Confermato Hard Lock               (re-import CSV con Jira "Approvato" + effort coperto)
+    → Pending Resources                  (allocazione rimossa/ridotta, oppure re-import
+                                          con Jira "Approvato" ma effort non coperto)
+    → Rejected                           (re-import CSV con Jira "Rejected")
 
-Confermato Hard Lock
+Confermato Hard Lock (Jira "Approvato", effort coperto)
     → Completato                         (data_fine ultima allocazione raggiunta)
     → Pending Resources                  (allocazione rimossa/ridotta)
 
-Pending Resources
-    → Allocato Soft Lock                 (allocazioni soft coprono stima_gg)
-    → Confermato Hard Lock               (allocazioni hard coprono stima_gg)
+Pending Resources (effort non coperto, qualsiasi fase contrattuale)
+    → Attesa di Allocazione              (tutte le allocazioni rimosse + Jira "Stimato")
+    → Allocato Soft Lock                 (allocazioni soft coprono stima_gg + Jira "Stimato")
+    → Confermato Hard Lock               (allocazioni hard coprono stima_gg + Jira "Approvato")
 
-Qualsiasi stato → Rejected              (re-import CSV con stato Jira "Rejected")
+Qualsiasi stato → Rejected              (re-import CSV con Jira "Rejected")
 ```
 
 > **Re-import:** quando un'iniziativa già presente nel sistema (match per `issue_key`) viene re-importata tramite CSV, i dati vengono aggiornati. Se l'aggiornamento introduce **anomalie** (variazione della stima, cambio delle date, cambio di priorità o tipologia), l'aggiornamento viene **bloccato** e richiede la **conferma del D&R Manager** prima di essere applicato. Il sistema evidenzia le differenze tra i dati esistenti e quelli importati (sezione 13.8).
@@ -730,7 +731,7 @@ L'operatività del Resource Plan si svolge su due livelli: l'**iniziativa** (cos
 | Dato | Descrizione |
 | :---- | :---- |
 | **Titolo e applicativo** | Nome dell'iniziativa e applicativo di riferimento |
-| **Date** | Data inizio desiderata, data fine desiderata, data inizio pianificata, data fine pianificata |
+| **Date** | Data fine desiderata, data inizio pianificata, data fine pianificata |
 | **Stima** | Giorni/uomo totali stimati (stima_gg) |
 | **Figure necessarie** | Fabbisogno di profili professionali (es. "2 Developer, 1 Senior Dev, 1 Analista Funzionale") |
 | **Giorni residui da allocare** | `stima_gg − Σ effort_allocato_gg di tutte le allocazioni attive`. Indica quanti giorni/uomo restano da assegnare. Se il valore è negativo, l'iniziativa è **sovra-allocata** e il pannello lo segnala visivamente (rosso) |
@@ -1015,13 +1016,11 @@ La lista iniziative è la vista principale per consultare tutte le iniziative im
 | :---- | :---- | :---- |
 | Issue key | `issue_key` | Sì |
 | Titolo | `titolo` | Sì |
-| Stato | `stato` (calcolato dalla macchina a stati) | Sì |
-| Stato Jira | `stato_jira` (valore originale importato) | Sì |
+| Stato | `stato` (calcolato dalla macchina a stati, chip colorata) | Sì |
 | Priorità | `priorita` | Sì |
 | Applicativo | `applicativo.nome` | Sì |
 | Contratto | `contratto.nome` | Sì |
 | Stima (gg) | `stima_gg` | Sì |
-| Data inizio desiderata | `data_inizio_desiderata` | Sì |
 | Data fine desiderata | `data_fine_desiderata` | Sì |
 | Richiedente | `richiedente` | Sì |
 | Note | `note` | No |
@@ -1030,7 +1029,7 @@ La lista iniziative è la vista principale per consultare tutte le iniziative im
 
 | Filtro | Tipo | Valori |
 | :---- | :---- | :---- |
-| **Stato** | Multi-select | Tutti gli stati della macchina a stati (sezione 3.1): To Do, Studio Fattibilità, Pronta per la Stima, Attesa di Allocazione, Allocato Soft Lock, Confermato Hard Lock, Completato, Pending Resources, Rejected |
+| **Stato** | Multi-select | I 6 stati della macchina a stati (sezione 3.1): Attesa di Allocazione, Allocato Soft Lock, Confermato Hard Lock, Pending Resources, Completato, Rejected |
 | **Contratto** | Multi-select | Elenco dinamico dei contratti censiti nel sistema + valore "(senza contratto)" per le iniziative senza contratto associato |
 | **Applicativo** | Multi-select | Elenco dinamico degli applicativi censiti nel sistema |
 | **Priorità** | Multi-select | Highest, High, Medium, Low, Lowest |
@@ -1044,8 +1043,8 @@ Ogni filtro mostra il **conteggio** dei risultati attivi accanto al nome del fil
 - **Intestazione**: issue_key, titolo, stato (badge colorato), priorità (badge)
 - **Dati Jira**: richiedente, data_richiesta, tenant, tipologia, valore_economico, corsia_urgenza, engineering_excellence
 - **Sizing**: sizing_sviluppo + polarita_sizing_sviluppo, sizing_analisi + polarita_sizing_analisi, stima_gg, affidabilita_stima, analisi_ptf
-- **Classificazione**: applicativo, contratto, componenti, in_riuso_da
-- **Date**: data_inizio_desiderata, data_fine_desiderata, data_inizio_pianificata, data_fine_pianificata
+- **Classificazione**: applicativo, contratto, moduli (chip list N:N), in_riuso_da
+- **Date**: data_fine_desiderata, data_inizio_pianificata, data_fine_pianificata
 - **Allocazioni**: tabella riepilogativa delle allocazioni collegate (risorsa, ruolo, ore, periodo) con totale giorni allocati vs stima_gg
 - **Note**: campo `note` editabile (unico campo modificabile dall'utente)
 - **Descrizione**: testo completo della descrizione (può essere multilinea con formattazione Jira convertita in testo semplice)
@@ -1309,7 +1308,7 @@ Issue key;Issue id;Summary;Description;Status;Priority;Custom field (Service Typ
 | Richiedente | `richiedente` | Valore diretto |
 | Data richiesta | `data_richiesta` | Conversione dal formato Jira a data |
 | Tenant | `tenant` | Valore diretto |
-| Components | `componenti` | Valore diretto |
+| Components | `moduli` (N:N → Modulo) | Risoluzione per `jira_component` (case-insensitive) o fallback su nome modulo. Se contiene più valori separati da virgola, ciascuno viene risolto indipendentemente. Componenti non riconosciuti generano un warning |
 | Corsia d'urgenza | `corsia_urgenza` | Valore diretto ("No" → null) |
 | Engineering Excellence (.1, .2) | `engineering_excellence` | Concatenazione con virgola dei campi non vuoti e diversi da "No" (es. "AI, DevEx, UI/UX"). Se tutti "No" o vuoti → null |
 | Sizing Sviluppo | `sizing_sviluppo` | Valore diretto (es. "M (15 - 50 gg)") |
@@ -1332,7 +1331,7 @@ L'applicazione, in fase di import:
 2. **Match iniziative:** il match è per `issue_key` (colonna "Issue key"). Se l'issue_key non esiste nel sistema, viene creata una nuova iniziativa
 3. **Match applicativo:** il valore di "Progetto BU DOC" viene cercato per nome nell'anagrafica applicativi. Se non trovato, il record viene segnalato come **errore** e non importato
 4. **Match contratto:** il valore di "Contratti BU DOC" viene cercato per `id_contratto_jira` nell'anagrafica contratti. Se non trovato e il campo non è vuoto, il record viene importato ma il sistema genera un **alert** "Contratto non censito" (sezione 8.1). Il campo `contratto` resta null
-5. **Mapping stato:** lo `stato_jira` determina lo stato interno dell'iniziativa secondo la macchina a stati (sezione 3.1). Gli stati non pianificabili (To Do, Studio fattibilità, Pronta per la stima) vengono importati ma le iniziative non sono allocabili
+5. **Filtro stati non pianificabili:** le iniziative con stato Jira "To Do", "Studio fattibilità" o "Pronta per la stima" vengono **scartate** (non inserite nel sistema). Il riepilogo pre-conferma mostra il conteggio delle iniziative scartate per stato non pianificabile. Per le iniziative con stato pianificabile (Stimato, Approvato, Rejected), lo `stato_jira` determina lo stato interno secondo la macchina a stati (sezione 3.1)
 6. **Conversione stima:** il campo "Original estimate" (in secondi Jira) viene convertito in giorni lavorativi dividendo per 28800
 7. **Riepilogo pre-conferma:** prima del salvataggio, l'applicazione mostra il riepilogo: nuove iniziative, iniziative aggiornate, anomalie rilevate, errori di validazione
 
@@ -1348,18 +1347,19 @@ Quando un'iniziativa con lo stesso `issue_key` è già presente nel sistema, l'a
 | **Cambio data fine desiderata** | Il Due date è diverso da quello registrato |
 | **Cambio priorità** | La Priority è cambiata |
 | **Cambio tipologia** | Il Service Type è cambiato |
-| **Cambio stato Jira** | Lo Status è cambiato (in particolare: transizione verso Rejected o da uno stato pianificabile a uno non pianificabile) |
+| **Cambio stato Jira** | Lo Status è cambiato (in particolare: transizione verso Rejected, o da Stimato ad Approvato) |
 | **Transizione a Rejected con allocazioni** | Lo Status è "Rejected" e l'iniziativa ha allocazioni attive (soft o hard lock) |
 
 **Interfaccia di conferma:**
 
-Il sistema presenta un riepilogo delle anomalie per ogni iniziativa coinvolta, evidenziando per ogni campo il **valore corrente** e il **nuovo valore**. Il D&R Manager può:
+Il sistema presenta un riepilogo delle anomalie per ogni iniziativa coinvolta, evidenziando per ogni campo il **valore corrente** e il **nuovo valore**. Il D&R Manager può, per ciascuna iniziativa:
 
-- **Confermare** l'aggiornamento — i dati vengono sovrascritti e, se lo stato cambia, la macchina a stati esegue la transizione
-- **Rifiutare** l'aggiornamento — i dati dell'iniziativa restano invariati
-- **Confermare parzialmente** — accettare i cambi sui dati ma gestire separatamente il rilascio delle allocazioni (nel caso di Rejected)
+- **Confermare** — i dati vengono sovrascritti e, se lo stato cambia, la macchina a stati esegue la transizione
+- **Rifiutare** — i dati dell'iniziativa restano invariati
 
-> **Rejected con allocazioni:** se lo stato passa a Rejected e l'iniziativa ha allocazioni attive, il sistema presenta l'elenco delle allocazioni con dettaglio risorsa, percentuale, periodo e tipo lock. Il D&R Manager rilascia le allocazioni manualmente (singolarmente o in blocco) dopo aver valutato l'impatto sulla pianificazione delle risorse coinvolte.
+La granularità è **per-iniziativa**: il D&R Manager può confermare alcune iniziative e rifiutarne altre nello stesso import.
+
+> **Rejected con allocazioni:** se lo stato passa a Rejected e l'iniziativa ha allocazioni attive, il rilascio delle allocazioni si gestisce dalla **pagina iniziative**, dove il D&R Manager ha il contesto completo della pianificazione. Il sistema presenta l'elenco delle allocazioni con dettaglio risorsa, percentuale, periodo e tipo lock. Il D&R Manager rilascia le allocazioni manualmente (singolarmente o in blocco) dopo aver valutato l'impatto sulla pianificazione delle risorse coinvolte.
 
 ---
 
@@ -1370,6 +1370,8 @@ Il sistema presenta un riepilogo delle anomalie per ogni iniziativa coinvolta, e
 | 27/08/2026 | Draft v1 | Stesura iniziale del documento con sezioni 1-10: contesto e obiettivi, utenti e permessi, modello dati (Applicativo, Modulo, Contratto, Iniziativa, Risorsa, Parametro risorsa, Allocazione, Profilo di competenza), integrazione Jira, import assenze Factorial, funzionalità core (orizzonti temporali, vista pivot, gestione iniziative/allocazioni, pool risorse, soft/hard lock, affiancamento, allocazione PM, PTF, finestre rilascio), regole di business automatiche, dashboard D&R Manager e BU Manager, requisiti non funzionali |
 | 28/08/2026 | Draft v1.1 | **Modello dati:** aggiunto campo `modulo` (FK nullable) su Iniziativa per tracciamento competenze a livello modulo. Spostati `soft_lock_scadenza` e `affiancamento` da Iniziativa ad Allocazione (la granularità è sulla singola assegnazione risorsa-iniziativa, non sull'iniziativa). Unificati `flag_rischio_tecnico` e `flag_rischio_stima` nel campo `affidabilita_stima` (enum Alta/Media/Bassa) + `vincoli_criticita` (testo libero PTF). Allineato `ruolo_nell_iniziativa` su Allocazione alla stessa enum di `ruolo` su Risorsa. Aggiunto flag `attivo` su Risorsa (auto-calcolato da `data_fine_contratto`). Aggiunto `data_fine_contratto` e `buffer_ore_settimanali` (override per risorsa) su Parametro risorsa. **Vincoli:** sovra-allocazione >100% cambiata da blocco a warning con conferma. Vincolo durata contrattuale cambiato da blocco a warning con conferma. **Nuove sezioni:** sezione 6 (Consuntivo e accuratezza delle stime) con entità Consuntivo e import CSV da worklog Jira. Sezione 12 (Stack tecnologico) con scelte architetturali: Next.js 15+, Vercel, Neon Postgres, Prisma 6+, Auth.js con Google Provider, MUI v6+, palette colori SiMaggioli. **Import:** aggiunto formato CSV assenze Factorial (nominativo;giorno;ore_assenza) e import risorse da CSV |
 | 31/08/2026 | Draft v2 | **Review commenti Giulia Pau e Sonia Brundu (28/08).** Invertita codifica colori saturazione: blu per sotto-utilizzo, verde per fascia ottimale (era il contrario). Risorse di manutenzione: ammessa allocazione a percentuale variabile, non più vincolate al 100%. Rimossa entità Finestra di rilascio e relativa sezione 7.9, campo su Applicativo e alert "Conflitto con finestra di rilascio" (non necessaria per la prima versione). Aggiunta sezione 7.0 (Operazioni CRUD e regole di cancellazione): tutte le entità modificabili e cancellabili, cancellazione bloccata (non a cascata) se esistono dipendenze. **Modello dati:** aggiunta entità Cliente (slug PK auto-generato da nome, inline creation da form Contratto); campo `cliente` su Contratto cambiato da Stringa a FK → Cliente; Risorsa: `nominativo` sostituito da campi distinti `nome` + `cognome`, aggiunto `id_dipendente` (dal sistema HR), `is_ptf` rinominato in "PTF (Presidio Tecnico Funzionale)"; Iniziativa: aggiunto campo `codice` per riferimento rapido; Allocazione: `effort_allocato_gg` ora calcolato automaticamente da `giorni_lavorativi(data_inizio, data_fine) × percentuale_allocazione / 100`, il D&R Manager inserisce solo percentuale e date. **UX e navigazione (nuova sezione 11):** principi generali (informazione minima, tooltip, badge iniziali risorse con tooltip nominativo completo); pagina impostazioni globali (parametri BU); navigazione pivot con zoom a 3 livelli (settimane, mesi, quarter) e filtri per ruolo/percentuale/date; navigazione bidirezionale risorse ↔ iniziative; creazione allocazioni inline con panel riepilogativo iniziativa e giorni residui; filtri rapidi come chip per campi binari/enum e ricerca full-text su tutte le entità. **Fuori scope (rimandati):** skill matrix / mappatura tecnologie per risorsa, tracciamento formazione con board Jira |
+| 04/09/2026 | Draft v2.8 | **Validazione condizionale macchina a stati.** Lo stato interno non è più determinato solo dallo stato Jira ma dalla combinazione stato Jira + copertura effort. Attesa di Allocazione solo se Jira "Stimato" e nessuna allocazione (altrimenti Pending Resources o Allocato Soft Lock). Confermato Hard Lock solo se Jira "Approvato" e effort coperto (altrimenti Pending Resources). Tabella mapping riscritta a 7 righe con colonna "Allocazioni". Diagramma transizioni aggiornato con condizioni esplicite su ogni arco |
+| 04/09/2026 | Draft v2.7 | **Applicazione decisioni grilling v2.3–v2.6** (11 decisioni dalla nota funzionale del 4 settembre 2026). **Override #1:** stati non pianificabili (To Do, Studio Fattibilità, Pronta per la Stima) scartati all'import — non entrano nel sistema; macchina a stati ridotta a 6 stati interni; diagramma transizioni semplificato; filtro Stato nella lista iniziative aggiornato. **Override #2:** campo `componenti` (Stringa) sostituito con relazione N:N `moduli` (FK → Modulo[]); aggiunto campo `jira_component` sull'entità Modulo come chiave di match per l'import CSV; aggiornato mapping CSV e drawer dettaglio (chip list). **Semplificazione #3:** rimossa "conferma parziale" dal flusso anomalie re-import; restano solo Confermare e Rifiutare con granularità per-iniziativa. **Correzione #4:** rimosso `data_inizio_desiderata` da tutti i riferimenti UI (tabella colonne, drawer dettaglio, pannello riepilogativo) — campo residuo senza fonte dati nel modello import-only. **Semplificazione #8:** colonna "Stato Jira" rimossa dalla tabella lista iniziative (visibile solo nel drawer dettaglio). Decisioni #5-7 confermano le logiche import già definite in v2.5/v2.6 |
 | 04/09/2026 | Draft v2.6 | **Warning informativi e gestione cascata sugli importer.** Aggiunto messaggio informativo all'attivazione del toggle override per risorse, parametri risorsa e assenze. Import risorse override: aggiunta gestione risorse assenti dal CSV con warning + disattivazione opzionale (checkbox nel riepilogo, non automatica); se la risorsa disattivata ha allocazioni future, warning con elenco impatti → conferma esplicita → rilascio allocazioni e rivalutazione stato iniziative (Pending Resources). Import parametri override: aggiunto warning **bloccante** se i nuovi record non coprono periodi con allocazioni attive; l'utente deve correggere il CSV. Import assenze: aggiunto messaggio informativo pre-import sul full replace del periodo |
 | 04/09/2026 | Draft v2.5 | **Logiche override/append per tutti gli importer.** Import risorse: aggiunta modalità append (default) vs override (toggle esplicito); in append le risorse esistenti vengono ignorate, in override i dati anagrafici vengono aggiornati; nessuna cancellazione in entrambe le modalità. Import parametri risorsa: aggiunta modalità append (default, con chiusura automatica record vigente) vs override (full replace per risorsa: cancella tutti i record esistenti della risorsa e ricostruisce dal CSV); in override warning se l'operazione impatta periodi con allocazioni consuntivate. Import assenze: riscritta logica come **full replace del periodo** (il range di date del CSV diventa la fonte di verità; tutte le assenze nel range vengono cancellate e ricostruite); aggiunti warning per risorsa non censita e impatto su allocazioni esistenti (sovra-allocazione); le modifiche ad assenze passate non generano warning. Import iniziative: logiche invariate (sezione 13.8) |
 | 03/09/2026 | Draft v2.4 | **UI iniziative read-only e filtri multi-selezione.** Aggiornata sezione 7.0 CRUD: tabella ampliata con colonne "Modificabile" e "Cancellabile"; Iniziativa marcata come non modificabile (solo campo `note` editabile) e non cancellabile. Sezione 7.3: rimossa creazione manuale iniziative, esplicitato che l'import CSV è l'unico canale di ingresso. Nuova sezione 11.7 (Lista iniziative): tabella con 12 colonne ordinabili, 4 filtri multi-select prominenti (Stato, Contratto, Applicativo, Priorità) combinabili in AND tra filtri / OR all'interno; dettaglio iniziativa in drawer laterale read-only con sezioni organizzate e campo `note` editabile inline. Aggiunto alert operativo "Contratto non censito" (sezione 8.1) per valori CSV non corrispondenti ad alcun `id_contratto_jira`. Aggiornato NFR 12.1: "sincronizzazione Jira" → "import CSV" |
